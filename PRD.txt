@@ -1,0 +1,1418 @@
+================================================================================
+PRODUCT REQUIREMENTS DOCUMENT
+Socratic — AI-Powered Teaching Simulation Platform
+Version 1.0 — Hackathon Build
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION 0 — PRODUCT OVERVIEW
+--------------------------------------------------------------------------------
+
+Product Name: Socratic
+Tagline: Teach it. Prove it. Own it.
+
+Core Concept:
+Socratic is a learning verification platform where users prove their knowledge
+by teaching it to an AI student named Mia. Mia is not a tutor or assistant —
+she is a simulated student with a specific knowledge state, behavioral modes,
+and a hidden agenda to find gaps in the user's understanding. The product
+surfaces blind spots, misconceptions, and knowledge depth through natural
+conversation rather than quizzes or tests.
+
+Primary User Flow:
+1. User enters a topic they want to teach
+2. App generates a concept tree and plants a misconception
+3. User teaches Mia through a live streaming chat interface
+4. Knowledge radar chart updates in real time as concepts are covered
+5. Mia's avatar reacts emotionally to explanations
+6. Misconception detection runs silently in the background
+7. Session ends with a full animated mastery report
+8. Report is shareable as a card or permanent link
+
+Target Users (Hackathon):
+- Students preparing for exams or presentations
+- Developers learning new technical concepts
+- Professionals preparing to explain a topic to stakeholders
+- Anyone who wants to verify they actually understand something
+
+--------------------------------------------------------------------------------
+SECTION 1 — TECH STACK
+--------------------------------------------------------------------------------
+
+Frontend:
+- Framework: Next.js 14 (App Router)
+- Language: TypeScript
+- Styling: Tailwind CSS
+- Animation: Framer Motion
+- Charts: D3.js (radar chart)
+- Avatar: SVG with CSS transitions (4 static states)
+- Streaming: Native Fetch API with ReadableStream
+- Share card download: html2canvas
+
+Backend:
+- Runtime: Next.js API Routes (serverless)
+- Database: Supabase (PostgreSQL)
+- Auth: Supabase Auth with Google OAuth
+- Storage: Supabase (for any file uploads)
+
+AI Providers:
+- Groq (primary — Mia streaming + evaluator)
+- Google Gemini (structured output — concept tree + report)
+
+Deployment:
+- Vercel (deploy immediately at hour 0 — live URL from day one)
+
+Environment Variables Required:
+- GROQ_API_KEY
+- GEMINI_API_KEY
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+
+Dependencies to Install:
+- groq-sdk
+- @supabase/supabase-js
+- @supabase/auth-helpers-nextjs
+- d3
+- framer-motion
+- html2canvas
+- pdf-parse (optional, for file upload support)
+
+--------------------------------------------------------------------------------
+SECTION 2 — DATABASE SCHEMA
+--------------------------------------------------------------------------------
+
+Table: users
+- id: uuid (primary key, from Supabase auth)
+- email: text
+- name: text
+- created_at: timestamp
+
+Table: sessions
+- id: uuid (primary key)
+- user_id: uuid (foreign key -> users.id)
+- topic: text
+- status: text ('initializing' | 'active' | 'completed')
+- concept_tree: jsonb
+- misconception: jsonb
+- messages: jsonb (array)
+- depth_scores: jsonb
+- bloom_levels: jsonb
+- blind_spots: jsonb (array)
+- misconception_result: text ('caught' | 'missed' | null)
+- report: jsonb
+- overall_score: integer
+- duration_minutes: integer
+- start_time: timestamp
+- end_time: timestamp
+- created_at: timestamp
+
+Session Concept Tree Shape:
+{
+  "topic": "string",
+  "concepts": [
+    { "id": "c1", "name": "string", "description": "string" },
+    ...
+  ],
+  "misconception": {
+    "concept_id": "c1",
+    "wrong_belief": "string",
+    "correct_belief": "string",
+    "trigger_phrase": "string",
+    "triggered_at": null,
+    "window_open": false,
+    "window_closes_at": null,
+    "result": null
+  }
+}
+
+Message Shape (each item in messages array):
+{
+  "role": "user" | "assistant",
+  "content": "string (clean text, no metadata)",
+  "mia_state": "curious" | "confused" | "satisfied" | "caught",
+  "timestamp": "ISO string",
+  "index": integer
+}
+
+Blind Spot Shape (each item in blind_spots array):
+{
+  "type": "misconception",
+  "concept_id": "string",
+  "wrong_belief": "string",
+  "correct_belief": "string",
+  "triggered_at": integer,
+  "missed_at": integer
+}
+
+Report Shape:
+{
+  "overall_score": integer,
+  "opening_summary": "string",
+  "concept_notes": {
+    "c1": {
+      "what_was_covered": "string",
+      "what_was_missed": "string | null"
+    }
+  },
+  "blind_spot_explanation": "string | null",
+  "best_moment_index": integer,
+  "best_moment_note": "string",
+  "standout_stat": "string"
+}
+
+--------------------------------------------------------------------------------
+SECTION 3 — ROUTES AND PAGES
+--------------------------------------------------------------------------------
+
+/ (Home / Onboarding)
+- Topic input
+- Optional URL and file upload
+- Triggers concept tree generation
+- Redirects to /session/[id] on success
+
+/session/[id] (Main Session Screen)
+- Split panel layout
+- Left: streaming chat with Mia
+- Right: avatar + live radar chart
+- End Session button
+
+/report/[id] (Post-Session Mastery Report)
+- Full screen animated report
+- All sections described in Feature 7
+- Shareable card at bottom
+- Publicly viewable (no auth required to view)
+
+/sessions (Session History)
+- List of past sessions as cards
+- Topic, date, score, concepts covered
+- Click card opens /report/[id]
+
+/api/session/create (POST)
+- Receives topic, optional url, optional file
+- Generates concept tree via Gemini
+- Creates session in database
+- Returns session object
+
+/api/session/[id]/chat (POST)
+- Receives message and session id
+- Builds Mia prompt dynamically
+- Streams Groq response back to client
+- Parses metadata and updates session
+
+/api/session/[id]/evaluate (POST)
+- Receives user message and session id
+- Runs misconception evaluator if window open
+- Returns correction detected: true/false
+- Uses llama-3.1-8b-instant on Groq
+
+/api/session/[id]/report (POST)
+- Receives session id
+- Generates full report via Gemini
+- Stores report in database
+- Returns report object
+
+--------------------------------------------------------------------------------
+SECTION 4 — FEATURE 1: TOPIC ONBOARDING
+--------------------------------------------------------------------------------
+
+Purpose:
+Single-purpose setup screen. Collects topic, processes optional source material,
+generates concept tree and misconception, initializes session object, transitions
+to session screen.
+
+UI Specification:
+
+Layout:
+- Full viewport, light background (#0A0A14 or similar deep navy)
+- Radial gradient background that animates slowly (8-10s cycle)
+- Animation speed increases when user starts typing (10s -> 6s via class toggle)
+- Centered content column, max-width 560px
+
+Header:
+- Logo or wordmark at top center
+- Tagline below: "Teach it. Prove it. Own it."
+- Muted gray text, sparse
+
+Main Input:
+- Large text input, full width
+- Font size: 20px, padding: 18px 20px
+- Border-radius: 12px
+- Background: rgba(255,255,255,0.05)
+- Border: 1px solid rgba(255,255,255,0.1)
+- Focus border: 1px solid accent color with box-shadow glow
+- Placeholder: "What do you want to teach today? Try 'The French Revolution' or 'How React hooks work'"
+- Auto-focus on page load
+
+Optional Source Section:
+- Small text "Add source material" with + icon below main input
+- Click to expand with max-height CSS transition
+- URL input: placeholder "Paste a YouTube link or article URL"
+- File upload zone: dashed border, drag-and-drop + click-to-browse
+- Accepts PDF and .txt only
+- Visually lighter than main input (smaller font, lower contrast)
+
+CTA Button:
+- Text: "Start Teaching →"
+- Full width, padding 16px, border-radius 12px
+- Solid accent color background
+- Font-weight: 600, font-size: 16px
+- Hover: translateY(-1px) + slightly more spread box-shadow
+- On click: immediately disable and start loading transition
+
+Loading State:
+- Form fades out over 300ms
+- Loading animation fades in (pulsing circle or orbiting dots in accent color)
+- Messages cycle with crossfade (not jump):
+  - "Understanding your topic..." (0-1.5s)
+  - "Building Mia's knowledge..." (1.5-3s)
+  - "Preparing your session..." (3s until API responds)
+- Background animation intensifies during loading
+
+Error State:
+- Loading reverses, form fades back in
+- Inline message below CTA: "Something went wrong. Try again?"
+- No modal, no full-page error
+
+Backend Flow:
+
+Step 1: Receive form submission (topic, url?, file?)
+Step 2: Create draft session in database with status "initializing"
+Step 3: Process optional source material
+  - URL: fetch via https://r.jina.ai/{url}, extract text, trim to 3000 tokens
+  - File: extract text with pdf-parse, chunk to 3000 tokens
+  - Store as session.source_text
+Step 4: Fire concept tree prompt to Gemini
+Step 5: Parse and validate JSON response
+Step 6: Run fallback if parse fails
+Step 7: Initialize depth_scores to 0 for all concepts
+Step 8: Update session status to "active", store in database
+Step 9: Return session object, frontend navigates to /session/[id]
+
+Concept Tree Generation Prompt (send to Gemini with responseMimeType: application/json):
+
+System context: You are a curriculum designer.
+
+User prompt:
+"Topic: {topic}
+{if source_text} Additional context from user notes: {source_text} {/if}
+
+Return a JSON object with exactly 5 to 8 sub-concepts a person must understand
+to demonstrate genuine mastery of this topic. Also return one common misconception
+that real students frequently hold about this topic.
+
+Return ONLY this exact JSON shape:
+{
+  'topic': 'cleaned up topic name',
+  'concepts': [
+    { 'id': 'c1', 'name': 'Concept Name', 'description': 'one sentence' },
+    ...
+  ],
+  'misconception': {
+    'concept_id': 'which concept id this belongs to',
+    'wrong_belief': 'specific wrong belief as declarative statement',
+    'correct_belief': 'correct understanding in 1-2 sentences',
+    'trigger_phrase': 'how Mia should introduce this — 15-30 words, confused student voice, first person'
+  }
+}"
+
+Fallback Concept Tree (if parse fails):
+{
+  topic: topic,
+  concepts: [
+    { id: "c1", name: "Core Definition", description: "..." },
+    { id: "c2", name: "Key Components", description: "..." },
+    { id: "c3", name: "How It Works", description: "..." },
+    { id: "c4", name: "Real-World Application", description: "..." },
+    { id: "c5", name: "Common Pitfalls", description: "..." }
+  ],
+  misconception: null
+}
+
+Validation Rules:
+- concepts array must have 5-8 items
+- every concept must have id, name, description
+- misconception.concept_id must match one of the concept ids
+- trigger_phrase must be present and non-empty
+- if any field missing, run fallback for that field only
+
+--------------------------------------------------------------------------------
+SECTION 5 — FEATURE 2: MIA THE AI STUDENT BRAIN
+--------------------------------------------------------------------------------
+
+Purpose:
+The AI engine that powers all conversation. Maintains student persona, follows
+curriculum, escalates question depth, plants misconception at the right moment,
+and returns structured metadata alongside every response.
+
+Model: llama-3.3-70b-versatile on Groq
+Streaming: Yes, always
+Max tokens per response: 500
+Temperature: 0.7
+
+Mia System Prompt (assembled dynamically before every API call):
+
+--- BLOCK 1: IDENTITY ---
+You are Mia, a curious and slightly confused student who is learning about
+{topic} for the very first time. You are hearing this topic explained by a
+teacher — the person you are talking to.
+
+You are NOT an assistant. You are NOT a tutor. You do NOT have background
+knowledge about {topic}. You only know what the person has told you in this
+conversation so far.
+
+Your personality: genuinely curious, occasionally frustrated when things are
+unclear, satisfyingly responsive when something clicks for you. You speak
+casually, like a real student — short sentences, natural language, never formal
+or academic.
+
+You never explain. You never teach. You only react, ask, and confirm. If you
+find yourself about to give information, stop and ask a question instead.
+
+--- BLOCK 2: KNOWLEDGE CONSTRAINTS ---
+STRICT KNOWLEDGE RULE:
+You must never demonstrate knowledge the user has not explicitly explained to
+you in this conversation. If the user uses a term you have not been taught,
+you do not know what it means. Ask what it means naturally — "wait, what's a
+{term}?" — exactly as a real student would.
+
+If the user mentions a process, mechanism, or concept without explaining it,
+treat it as a gap and ask about it. The only exception: basic vocabulary that
+any person would know regardless of topic (words like process, change, result).
+
+--- BLOCK 3: CURRICULUM (dynamically generated) ---
+CURRICULUM:
+The following are the key concepts for this topic. Guide the conversation to
+cover all of them in order. Do not skip ahead. Do not ask about concept N+1
+until the user has addressed concept N at a basic level.
+
+Concepts to cover in order:
+{concept_tree.map(c => `${index+1}. ${c.name} — ${c.description}`).join("\n")}
+
+Current concept focus: {currentConcept.name}
+Concepts already covered: {coveredConcepts.join(", ") || "none yet"}
+
+--- BLOCK 4: BLOOM'S ESCALATION ---
+QUESTION DEPTH RULES:
+Escalate your questions based on how well the user has explained the current
+concept so far.
+
+Depth 1 (first question on a concept): Ask for basic recall.
+"What actually is X?" or "Can you explain what X means?"
+
+Depth 2 (user gave basic answer): Ask for comprehension.
+"Okay but why does that happen?" or "What causes that?"
+
+Depth 3 (user explained mechanism): Ask for connection.
+"How does that connect to {previous concept}?"
+
+Depth 4 (user connected concepts): Ask for application.
+"So if that's true, what would happen if {scenario}?"
+
+Depth 5 (user answered application): Express genuine understanding and
+summarize what you learned. Then move to the next concept.
+
+Never jump more than one depth level per exchange.
+
+--- BLOCK 5: MISCONCEPTION (conditionally included) ---
+[Include only when coveredCount >= 2 AND misconception not yet triggered
+AND remainingConcepts >= 2]
+
+MISCONCEPTION TO INTRODUCE:
+At a natural moment in this response, introduce this wrong belief as if you
+half-remember hearing it: "{misconception.trigger_phrase}"
+
+Make it sound natural — not like a test, like a confused student recalling
+something half-remembered. Set misconception_triggered to true in your metadata
+for this response only. Never introduce it more than once.
+
+If the user corrects you, react with genuine surprise and relief:
+"Oh wow, I had that completely backwards. So it's actually {correct}?"
+
+If the user does NOT correct you and moves on, do not bring it up again.
+
+[Include when misconception already triggered and not yet caught]
+You already introduced your wrong belief. Do NOT mention it again. Continue
+the curriculum normally. If the user corrects it in their next message, set
+misconception_caught to true in your metadata.
+
+[Include when misconception not yet triggered and coveredCount < 2]
+Do not introduce the misconception yet. Wait until at least 2 concepts are
+covered.
+
+--- BLOCK 6: BEHAVIORAL MODES ---
+BEHAVIORAL MODES — match response style to what just happened:
+
+CONFUSED: Use when user gives incomplete answer, uses unexplained jargon, or
+skips a step. "Hmm, I'm not sure I follow. What do you mean by {term}?" or
+"Wait, you lost me — can you back up?"
+
+CURIOUS: Use as default when asking a follow-up or moving to new concept.
+"Okay that makes sense, but then what about..."
+
+SATISFIED: Use when user gives genuinely good, complete explanation. Express
+that something clicked: "Oh! So it's like... {analogy}. That actually makes sense."
+
+CAUGHT: Use ONLY when user successfully corrects your misconception. Express
+surprise and genuine relief. This is a reward moment.
+
+Keep responses SHORT. 1 to 3 sentences maximum for visible student dialogue.
+
+--- BLOCK 7: METADATA OUTPUT ---
+METADATA OUTPUT:
+After your student dialogue, on a new line, output a JSON block wrapped in
+<metadata></metadata> tags. This is hidden from the user — system use only.
+
+<metadata>
+{
+  "concept_covered": "{concept id being discussed}",
+  "depth_score": {1-5},
+  "misconception_triggered": {true|false},
+  "misconception_caught": {true|false|null},
+  "bloom_level_reached": {1-5},
+  "mia_state": "confused|curious|satisfied|caught"
+}
+</metadata>
+
+Never mention the metadata. Never reference it. Output it silently after every
+response without fail. Never output markdown code fences around it.
+
+Dynamic Prompt Assembly Function Logic:
+1. Find currentConcept: first concept where depth_score < 3, or last concept
+2. Build coveredConcepts: list of concept names where depth_score >= 2
+3. Determine misconceptionBlock based on state machine
+4. Assemble all blocks in order: identity, constraints, curriculum, bloom,
+   misconception, behavioral, metadata
+5. Format conversation history using clean_text (metadata stripped from history)
+6. Append new user message
+
+Metadata Parsing:
+
+function parseResponse(rawResponse):
+  - Extract text between <metadata> and </metadata> tags using regex
+  - Parse as JSON, catch errors and return defaultMetadata on failure
+  - Strip full metadata block (including tags) from visible text
+  - Return { cleanText, metadata }
+
+defaultMetadata():
+  return {
+    concept_covered: null,
+    depth_score: 1,
+    misconception_triggered: false,
+    misconception_caught: null,
+    bloom_level_reached: 1,
+    mia_state: "curious"
+  }
+
+stripPartialMetadata(text) during streaming:
+  - Remove complete metadata blocks: /<metadata>[\s\S]*?<\/metadata>/g
+  - Remove partial opening tags at end of string: /<metadata>[\s\S]*$/
+  - Trim and return
+
+Session State Update After Each Response:
+1. Update depth_scores[metadata.concept_covered] = max(existing, metadata.depth_score)
+2. Update bloom_levels[metadata.concept_covered] = max(existing, metadata.bloom_level_reached)
+3. If misconception_triggered: open detection window
+4. If misconception_caught: close window, record as caught
+5. Pass mia_state to avatar system
+6. Pass concept_covered + depth_score to radar system
+7. Store clean message in session.messages
+8. Every 5 messages: flush session to database
+
+--------------------------------------------------------------------------------
+SECTION 6 — FEATURE 3: TEACHING CHAT INTERFACE
+--------------------------------------------------------------------------------
+
+Purpose:
+Main session screen. Streaming chat between user and Mia. Split panel with
+chat on left and radar + avatar on right. Designed for user to write more
+than Mia — inversion of typical chat interface design.
+
+Layout:
+
+Desktop (>768px):
+- Left panel: 60% width — chat
+- Right panel: 40% width — avatar + radar
+- Both panels full viewport height
+
+Mobile (<=768px):
+- Chat panel: full width, ~60vh
+- Radar panel: full width, ~40vh
+- Stacked vertically
+
+Left Panel Sub-regions:
+- Session header bar: 48px fixed height
+- Message thread: flex-grow 1, overflow-y scroll
+- Input area: min-height 120px, max-height 240px
+
+Right Panel Sub-regions:
+- Mia avatar: 160px height, centered
+- Radar chart: flex-grow 1
+
+Session Header Bar:
+- Left: topic name (truncate >30 chars with ellipsis)
+- Center: elapsed timer (MM:SS, counts up from 00:00, pauses on tab blur)
+- Right: "End Session" button (outlined, transparent bg)
+  - Hover: subtle red tint on border (rgba(255,100,100,0.4))
+  - Click: confirmation modal
+
+End Session Modal:
+- Message: "End session and see your results?"
+- Primary button: "See Results" (filled accent color)
+- Secondary button: "Keep Going" (text only)
+- No accidental session ending
+
+Message Rendering:
+
+Mia messages (left side):
+- 32x32 avatar thumbnail on far left
+- Bubble: background rgba(255,255,255,0.06), border 1px solid rgba(255,255,255,0.08)
+- Border-radius 12px, top-left-radius 4px
+- Padding 12px 16px, max-width 75%
+- Font: 15px, line-height 1.6
+- Relative timestamp below bubble in muted small text
+
+User messages (right side):
+- No avatar
+- Bubble pushed right
+- Background: accent color at 20-30% opacity
+- Border: accent color at 40% opacity
+- Border-radius 12px, top-right-radius 4px
+- Max-width 80%
+
+Streaming Behavior:
+- Bubble exists and grows as tokens arrive — never collapses to zero height
+- Tokens appended to bubble text content in real time
+- No blinking cursor at end of streaming text
+- Typing indicator: three dots with 200ms stagger animation (CSS only)
+  - Appears within 100-200ms of user sending message
+  - Replaced seamlessly by message bubble on first token
+  - No layout shift between indicator and bubble
+
+Input Area:
+
+Textarea:
+- width: 100%, min-height 80px, max-height 200px
+- resize: none, overflow-y auto
+- Font-size 15px, line-height 1.6, padding 14px 16px
+- Auto-grows with content (JS: set height to scrollHeight, cap at 200px)
+- Background: rgba(255,255,255,0.04)
+- Border: 1px solid rgba(255,255,255,0.1), border-radius 12px
+- Placeholder rotates based on current concept:
+  "Explain it in your own words..."
+  "Teach Mia what you know about this..."
+  "Walk her through it step by step..."
+
+Key Bindings:
+- Enter: send message
+- Shift+Enter: new line
+- Send button: always visible, icon only (paper plane or arrow)
+
+Disabled State:
+- While Mia is responding: grey out input and send button
+- Re-enable immediately when stream completes
+
+Word Count:
+- Live count in bottom-right corner of input area
+- Small muted text: "42 words"
+- No limit — just a counter to encourage longer explanations
+
+Auto-scroll Logic:
+- Auto-scroll to bottom on every new content append
+- Exception: if user has scrolled more than 100px above bottom, do not force scroll
+- On user send: always scroll to bottom
+- Threshold: distanceFromBottom = scrollHeight - scrollTop - clientHeight < 100
+
+Streaming API Call Pattern (frontend):
+1. Append user message to UI immediately
+2. Show typing indicator
+3. POST to /api/session/[id]/chat with { message, history }
+4. Open ReadableStream on response
+5. Replace typing indicator with empty bubble on first chunk
+6. Decode chunks, call stripPartialMetadata, update bubble text
+7. On stream complete: parse full response, extract cleanText + metadata
+8. Set final bubble text to cleanText
+9. Call updateRadarChart(metadata)
+10. Call updateMiaAvatar(metadata.mia_state)
+11. Store message in session history
+12. Re-enable input
+
+Backend Chat Route (/api/session/[id]/chat):
+1. Get session from database by id
+2. Build Mia prompt via dynamic assembly function
+3. Call Groq with stream: true
+4. Pipe stream directly to response
+5. After stream, update session state in background (non-blocking)
+
+Error Handling for Rate Limits:
+- Catch 429 from Groq
+- Wait 3 seconds
+- Retry once
+- If still failing, fall back to Gemini gemini-2.0-flash
+- Never show a broken state to the user during the demo
+
+--------------------------------------------------------------------------------
+SECTION 7 — FEATURE 4: LIVE KNOWLEDGE RADAR CHART
+--------------------------------------------------------------------------------
+
+Purpose:
+Visual representation of concept coverage. Built with D3.js. Updates
+in real time as session progresses. Empty skeleton at session start.
+Fills smoothly as concepts are covered. Amber for blind spots.
+Clickable axes to drill into concepts.
+
+Depth Score to Radius Mapping:
+- Depth 0: 0% of maxRadius
+- Depth 1: 15% of maxRadius
+- Depth 2: 35% of maxRadius
+- Depth 3: 55% of maxRadius
+- Depth 4: 75% of maxRadius
+- Depth 5: 100% of maxRadius
+
+SVG Setup:
+- width: 320, height: 320
+- viewBox: "0 0 320 320"
+- preserveAspectRatio: xMidYMid meet
+- margin: 40 (for labels)
+- centerX: 160, centerY: 160
+- maxRadius: (min(width,height)/2) - margin = 120
+
+Axis Angle Calculation:
+- Divide 360 degrees evenly among N concepts
+- Offset by -PI/2 so first axis points up
+- angle[i] = (i/N) * 2*PI - PI/2
+- Axis endpoint: x = cos(angle)*maxRadius, y = sin(angle)*maxRadius
+- Label position: x = cos(angle)*(maxRadius+20), y = sin(angle)*(maxRadius+20)
+
+Label Anchor Logic:
+- Top quadrant (-135 to -45 degrees): middle
+- Bottom quadrant (45 to 135 degrees): middle
+- Right side (-45 to 45 degrees): start
+- Left side (135 to 225 degrees or -135 to -180): end
+
+Background Rings:
+- 5 concentric rings at radii: 15%, 35%, 55%, 75%, 100% of maxRadius
+- Stroke: rgba(255,255,255,0.06)
+- Inner 4 rings: stroke-dasharray 3,3
+- Outer ring: solid stroke
+- No fill
+
+Axis Lines:
+- From center (0,0) to (axis.x, axis.y)
+- Stroke: rgba(255,255,255,0.12), stroke-width 1
+
+Axis Labels:
+- Font-size: 11px
+- Initial fill: rgba(255,255,255,0.3) (faint)
+- Covered concept fill: rgba(255,255,255,0.9) (bright)
+- Blind spot fill: rgba(255,180,50,0.9) (amber)
+
+Glow SVG Filter (define once in defs):
+- feGaussianBlur stdDeviation 3
+- feMerge combining blur and source graphic
+- Apply to filled polygon and endpoint dots
+
+Filled Polygon:
+- Single SVG polygon element
+- Points calculated from current depth scores
+- Fill: rgba(99,220,200,0.15) — accent color semi-transparent
+- Stroke: rgba(99,220,200,0.8) — accent color solid
+- Stroke-width: 2, stroke-linejoin: round
+- Apply glow filter
+
+Update Function (called on every metadata block):
+1. Update session.depth_scores[conceptId] = newDepthScore
+2. Calculate new polygon points from all depth scores
+3. Call filledPolygon.interrupt() to clear queued transitions
+4. Transition polygon to new points: duration 800ms, ease cubicOut
+5. If depth >= 1: brighten axis label (transition 400ms)
+6. If depth >= 4: add endpoint glow dot (bounce animation 600ms)
+
+Endpoint Glow Dot:
+- Circle at axis endpoint
+- Radius animates from 0 to 5 with easeBounceOut
+- Fill: accent color solid
+- Apply glow filter
+- Remove and re-add on each update (d3.select().remove() then re-append)
+
+Blind Spot Treatment:
+- Draw amber line from center along affected axis
+- Stroke: rgba(255,180,50,0.9), stroke-width 3
+- Animate from center to depth-score endpoint
+- Turn axis label amber
+- Add warning emoji text element near label
+
+Axis Click Interaction:
+- Invisible hit area over each axis: stroke transparent, stroke-width 20
+- Cursor: pointer
+- On mouseenter: increase label font-size to 13px
+- On mouseleave: revert
+- On click:
+  1. Pulse the axis briefly (show stroke momentarily then fade)
+  2. Send prompt to Mia: "Let's go back to {concept.name}. Ask me
+     another question about it — try to go deeper than before."
+
+Event Architecture:
+- Use EventTarget or React state for radar updates
+- Chat system dispatches "concept-updated" event after metadata parse
+- Radar listens and calls updateRadar
+- 0ms delay for radar (updates immediately)
+
+--------------------------------------------------------------------------------
+SECTION 8 — FEATURE 5: MIA AVATAR WITH EMOTIONAL REACTIONS
+--------------------------------------------------------------------------------
+
+Purpose:
+Visual emotional representation of Mia. Reacts to mia_state field from
+metadata. Small static version in each chat bubble. Large animated version
+in right panel above radar chart.
+
+States:
+- curious: default resting state, alert and attentive
+- confused: head tilt, asymmetric eyebrows, slight frown
+- satisfied: gentle nod, squinted eyes (Duchenne smile), upward mouth curve
+- caught: startled jump + shake, wide eyes, open mouth surprise
+
+Implementation: Approach A (4 static SVGs with CSS transitions)
+
+SVG Face Design (base structure, 120x120 viewBox):
+- Head: circle cx=60 cy=60 r=50
+- Left eye: ellipse cx=42 cy=52
+- Right eye: ellipse cx=78 cy=52
+- Left eyebrow: quadratic bezier path
+- Right eyebrow: quadratic bezier path
+- Mouth: quadratic bezier path
+
+State Variations:
+
+curious:
+- Eyebrows: slightly raised, symmetric
+- Eyes: normal (ry=8)
+- Mouth: very slight upward curve (nearly flat)
+- No transform
+
+confused:
+- Left eyebrow: higher control point
+- Right eyebrow: flatter
+- Eyes: normal
+- Mouth: downward curve (control point reversed)
+- Container: transform rotate(12deg)
+
+satisfied:
+- Eyebrows: relaxed, lower control points
+- Eyes: squinted (ry=5)
+- Mouth: strong upward curve
+
+caught:
+- Eyebrows: very high control points
+- Eyes: very wide (ry=12)
+- Mouth: O shape or wide open curve
+
+CSS Transitions:
+
+.avatar-state { opacity: 0; transition: opacity 0.3s ease; }
+.avatar-state.active { opacity: 1; }
+
+.avatar-confused { transform: rotate(12deg); transform-origin: center;
+  transition: opacity 0.3s ease, transform 0.3s ease-out; }
+
+@keyframes nod {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(6px); }
+  100% { transform: translateY(0); }
+}
+.avatar-satisfied.active { animation: nod 0.4s ease-out; }
+
+@keyframes jump-shake {
+  0% { transform: scale(1); }
+  15% { transform: scale(1.12); }
+  30% { transform: scale(1) translateX(-4px); }
+  50% { transform: translateX(4px); }
+  70% { transform: translateX(-3px); }
+  85% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+.avatar-caught.active { animation: jump-shake 0.6s ease-out; }
+
+Idle breathing (when curious and nothing happening):
+@keyframes idle-breathe {
+  0% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.015) translateY(-1px); }
+  100% { transform: scale(1) translateY(0); }
+}
+.avatar-large-container.idle { animation: idle-breathe 3s ease-in-out infinite; }
+
+Random blink (every 8-12 seconds):
+- Scale eye ry from 8 to 1 over 75ms, then back to 8 over 75ms
+- Random interval: 8000 + Math.random() * 4000
+
+State Machine Logic:
+- current: "curious"
+- transitioning: false
+- queue: [] (max 1 item, latest only)
+- On setState(newState):
+  - If same state and not transitioning: return
+  - If transitioning: queue = [newState], return
+  - Else: performTransition(newState)
+- performTransition:
+  - Set transitioning = true
+  - Execute visual transition
+  - After 350ms: set transitioning = false
+  - Process queue if any
+  - If newState !== curious: set 2000ms timer to return to curious
+
+Placement:
+
+Large avatar (right panel top):
+- Container: 120x120px, border-radius 50%
+- Background: rgba(255,255,255,0.04)
+- Border: 1px solid rgba(255,255,255,0.08)
+- Centered with margin: 0 auto 16px auto
+- Below: "Mia" label in small text
+- Below: current state name in smaller muted text (updates live)
+
+Small avatar (chat bubbles):
+- 32x32px, border-radius 50%
+- Border: 1.5px solid accent color at varying opacity per state
+- Static snapshot of state when message was sent
+- Does not animate after rendering
+
+Timing Relative to Radar:
+- Radar updates at t=0 after metadata received
+- Avatar updates at t=150ms (slight delay so they feel like two separate reactions)
+
+--------------------------------------------------------------------------------
+SECTION 9 — FEATURE 6: MISCONCEPTION DETECTION
+--------------------------------------------------------------------------------
+
+Purpose:
+Silent background detection system. Runs invisibly during session. User never
+knows it is active. Detection result surfaces only in mastery report.
+
+Misconception Data Flow:
+1. Generated during onboarding (same call as concept tree)
+2. Stored in session.misconception object
+3. Planted in Mia's system prompt
+4. Triggered when Mia introduces wrong belief (metadata flag)
+5. Detection window opens for 5 user messages
+6. Caught if user corrects within window (evaluator confirms)
+7. Missed if 5 messages pass without correction
+8. Result stored and shown in mastery report
+
+Detection Window State Machine (MisconceptionDetector class):
+
+Properties:
+- session reference
+- messageCount counter
+
+onMiaResponse(metadata, messageIndex):
+  - If metadata.misconception_triggered === true: openWindow(messageIndex)
+  - If window open AND metadata.misconception_caught === true: recordCaught()
+
+onUserMessage(messageIndex):
+  - If window not open: return
+  - If messageIndex - triggered_at >= 5: recordMissed(messageIndex)
+
+openWindow(messageIndex):
+  - Guard: if triggered_at already set, return (prevent duplicate triggers)
+  - Set misconception.triggered_at = messageIndex
+  - Set misconception.window_open = true
+  - Set misconception.window_closes_at = messageIndex + 5
+  - Save to database
+
+recordCaught(messageIndex):
+  - Set window_open = false
+  - Set result = "caught"
+  - Set caught_at = messageIndex
+  - Dispatch "misconception-caught" event (avatar caught reaction)
+  - Save to database
+
+recordMissed(messageIndex):
+  - Set window_open = false
+  - Set result = "missed"
+  - Push to blind_spots array:
+    { type: "misconception", concept_id, wrong_belief, correct_belief,
+      triggered_at, missed_at: messageIndex }
+  - Save to database
+
+Evaluator Call (Option B — piggyback on Mia metadata, recommended for hackathon):
+- Rely on Mia's misconception_caught field in metadata
+- No separate API call
+- Guard: only trust this field when window is open
+
+Evaluator Call (Option A — dedicated call, more accurate):
+Model: llama-3.1-8b-instant on Groq
+Temperature: 0.0 (deterministic)
+Max tokens: 20
+Prompt: "A student was told the wrong belief: '{wrong_belief}'.
+The student then said: '{userMessage}'.
+Did the student explicitly challenge, contradict, or correct the wrong belief?
+Doubt or uncertainty does not count — must be an explicit correction.
+Reply ONLY with: {'corrected': true} or {'corrected': false}"
+Fire in parallel with main Mia call, not sequentially.
+
+Session End Handling:
+- If window still open when session ends: automatically record as missed
+- Never leave result in null/pending state at report time
+
+What Counts as Catching (evaluator calibration):
+COUNTS:
+- Explicit contradiction of the wrong belief
+- Providing the correct information that replaces the wrong belief
+- Directly saying Mia's belief is wrong and explaining why
+
+DOES NOT COUNT:
+- Vague uncertainty ("I'm not sure about that")
+- Agreement
+- Ignoring and moving on
+- Tangentially related information
+
+Hardcoded Demo Misconceptions (prepare before hackathon):
+
+Photosynthesis:
+  wrong_belief: "Plants absorb most of their mass from the soil they grow in"
+  correct_belief: "Most of a plant's mass comes from CO2 in the air, fixed
+    through photosynthesis — not from soil. Soil provides minerals and water."
+  trigger_phrase: "Oh wait — I thought I heard that plants basically eat the
+    soil? Like they absorb most of their weight from it? Is that right?"
+
+React Hooks:
+  wrong_belief: "useEffect runs after every render by default with no way
+    to control it"
+  correct_belief: "useEffect with no dependency array runs after every
+    render. An empty array [] makes it run only once. Specific values in
+    the array make it run only when those values change."
+  trigger_phrase: "So does useEffect just always run after every single
+    render? Like there's no way to stop it from doing that?"
+
+Evolution:
+  wrong_belief: "Animals evolve because they need to adapt — they try to
+    develop the traits they need"
+  correct_belief: "Evolution has no goal or intention. Random mutations
+    occur, and those that happen to improve survival get passed on. Animals
+    don't try to evolve — selection filters existing variation."
+  trigger_phrase: "So do animals like... try to evolve? Like they need
+    a trait so over generations they develop it?"
+
+French Revolution:
+  wrong_belief: "The guillotine was invented specifically for the
+    French Revolution"
+  correct_belief: "Beheading devices existed before the Revolution.
+    Dr. Guillotin proposed a more humane standardized method in 1789,
+    but the device used was refined by others and became associated
+    with the Terror."
+  trigger_phrase: "Oh interesting — so the guillotine was like invented
+    just for the Revolution? That's kind of wild."
+
+Machine Learning:
+  wrong_belief: "More training data always improves a machine learning
+    model's performance"
+  correct_belief: "More data helps up to a point but can cause overfitting,
+    increase noise, require more compute, and hurt performance on
+    out-of-distribution examples. Data quality and relevance matter
+    more than raw quantity."
+  trigger_phrase: "So if you just keep adding more and more training data
+    the model always gets better right? Like more data is always better?"
+
+--------------------------------------------------------------------------------
+SECTION 10 — FEATURE 7: POST-SESSION MASTERY REPORT
+--------------------------------------------------------------------------------
+
+Purpose:
+Full-screen animated report screen shown after session ends. Synthesizes all
+session data into a readable, shareable summary. Designed to feel rewarding
+not judgmental. Makes user want to go again immediately.
+
+Report Generation API Call:
+Model: gemini-2.0-flash
+responseMimeType: "application/json"
+Temperature: 0.4
+Fires before report screen renders (during loading state)
+Result stored permanently in session.report
+
+Report Generation Prompt:
+"You are generating a post-session mastery report for a teaching simulation app.
+The user just finished teaching a topic to an AI student named Mia.
+
+TOPIC: {session.topic}
+
+CONCEPT TREE AND DEPTH SCORES:
+{concepts.map(c => `- ${c.name}: depth ${depth_scores[c.id]}/5`).join('\n')}
+
+BLOOM LEVELS REACHED:
+{JSON.stringify(bloom_levels)}
+
+MISCONCEPTION RESULT:
+{caught: 'Caught — user correctly identified: ...' |
+ missed: 'Missed — user failed to correct: ...' |
+ null: 'Not triggered'}
+
+MESSAGES EXCHANGED: {messages.length}
+DURATION: {duration_minutes} minutes
+
+DEPTH SCORE INTERPRETATION:
+- 1-2: shallow or barely covered
+- 3: adequate coverage
+- 4-5: strong or thorough coverage
+
+Generate report JSON:
+{
+  'overall_score': <0-100, weighted by depth and bloom>,
+  'opening_summary': '<1 sentence, specific, mentions topic + strongest +
+    one area to improve, warm, max 25 words>',
+  'concept_notes': {
+    '<concept_id>': {
+      'what_was_covered': '<1 sentence on what was explained well>',
+      'what_was_missed': '<1 sentence on gap, or null if fully covered>'
+    }
+  },
+  'blind_spot_explanation': '<if missed: 2 sentences on wrong belief and
+    correct belief. If caught or not triggered: null>',
+  'best_moment_index': <index of best user message>,
+  'best_moment_note': '<1 sentence on why this was strongest>',
+  'standout_stat': '<1 surprising specific stat from session>'
+}"
+
+Score Calculation (local, as backup and validation):
+- depthContribution = (depthScore/5) * 60
+- bloomContribution = (bloomLevel/5) * 40
+- conceptScore = depthContribution + bloomContribution (out of 100)
+- baseScore = average conceptScore across all concepts
+- If misconception caught: add 8 points (max 100)
+- If misconception missed: subtract 5 points (min 0)
+- Round to integer
+
+Loading State (while report generates):
+- Chat dissolves
+- Centered animated loading state
+- Cycling messages:
+  "Reviewing your explanations..."
+  "Calculating concept coverage..."
+  "Identifying your strongest moments..."
+  "Preparing your mastery report..."
+- Optional: radar chart building itself axis by axis during this screen
+
+Section 1 — Opening Score Card:
+- Full viewport height (user cannot see section 2 initially)
+- Score counter: counts from 0 to final over 1500ms
+  - Ease-out cubic (fast start, slows to final value)
+  - Color coding: >= 80 teal, >= 60 blue, >= 40 yellow, < 40 soft red
+- Opening summary fades in after counter finishes
+  - Font-size 18px, line-height 1.7, max-width 480px, centered
+  - Color: rgba(255,255,255,0.75) — supportive, not competing with score
+- Scroll invitation below (chevron or "See your full report")
+
+Section 2 — Coverage Radar:
+- Same radar as session, now static, final state
+- Entrance animation: all axes fill in with 100ms stagger between each
+- Depth score dots shown on each axis label (filled/empty circles)
+- Amber treatment for blind spot axes
+- Small amber explanation note below radar if blind spots exist
+
+Section 3 — Concept Breakdown:
+- Vertical list, rows stagger in with 50ms delay each
+- Each row: concept name | depth dots | bloom level | expand chevron
+- Blind spot rows: amber warning icon
+- Click to expand: reveals what_was_covered and what_was_missed
+- One row expanded at a time (expanding new row collapses previous)
+- Expansion: max-height CSS transition 0 -> 200px, opacity 0 -> 1
+
+Section 4 — Blind Spots Caught (only if result === "caught"):
+- Card with gold/teal border and trophy icon in header
+- Shows: Mia's trigger phrase (quoted), user's correction (quoted), correct belief
+- Celebratory tone throughout
+- Framed as achievement
+
+Section 5 — Blind Spots Missed (only if result === "missed"):
+- Card with amber border and warning icon
+- Shows: Mia's trigger phrase (quoted), "You did not correct this.", correct belief
+- "You did not correct this." — single short direct sentence, no softening
+- Correct belief explanation should be genuinely interesting, not just dry correction
+- Omit section entirely if result !== "missed"
+
+Section 6 — Best Moment:
+- Pull-quote styling: large quotation marks, larger font, centered
+- Exact text of user's best message
+- Caption below: concept name · depth score · bloom level
+
+Section 7 — Shareable Card (MUST BUILD FOR HACKATHON):
+Visual layout:
+- App logo + date top
+- Topic name
+- Three stats: mastery score, concepts covered, misconceptions caught
+- Strongest concept + concept to revisit
+- Standout stat quote
+
+Download as PNG:
+- Use html2canvas library
+- scale: 2 (retina quality)
+- backgroundColor: app background color
+- Filename: "teachback-{topic-slug}.png"
+
+Share as link:
+- URL: https://yourapp.com/report/{session_id}
+- Copy to clipboard with navigator.clipboard.writeText
+- Button changes to "Copied!" for 2 seconds
+
+Public report viewing:
+- /report/[id] is publicly viewable without auth
+- Renders from stored session.report in database
+- No re-generation on revisit
+
+Section Entrance Animations:
+- IntersectionObserver on each .report-section
+- Threshold: 0.15
+- On intersect: add class "section-visible", unobserve
+- Base: opacity 0, translateY 24px
+- Visible: opacity 1, translateY 0
+- Transition: 0.5s ease-out
+- Child stagger: nth-child delay increments of 50ms
+
+Navigation from Report:
+- "Try Again" button: returns to onboarding with topic pre-filled
+- "Back to Sessions" button: navigates to /sessions
+
+Fallback Report (if generation fails):
+- Calculate score locally with calculateOverallScore()
+- Build generic text from raw session data
+- Never crash — always show a complete report
+
+--------------------------------------------------------------------------------
+SECTION 11 — FEATURE 8: AUTH AND SESSION SAVE
+--------------------------------------------------------------------------------
+
+Purpose:
+Google auth via Supabase. Session persistence so judges can revisit sessions
+after demo. Incremental saves every 5 messages to prevent data loss.
+
+Auth Setup:
+- Supabase Google OAuth (configure in Supabase dashboard)
+- Middleware protects /session/* and /report/write routes
+- /report/[id] is public read (no auth required)
+- /sessions requires auth
+
+Session Save Strategy:
+- On session create: insert row with status "initializing"
+- On status change to active: update row
+- Every 5 messages: upsert full session state
+- On session end: update with report, status "completed", end_time
+- Use upsert (not update) to handle edge cases
+
+Session History Page (/sessions):
+- List user's sessions ordered by created_at descending
+- Each card: topic, date, overall_score, concepts covered count
+- Click card: navigate to /report/[id]
+- Simple layout, 2 hours to build
+
+--------------------------------------------------------------------------------
+SECTION 12 — AI MODEL ASSIGNMENTS
+--------------------------------------------------------------------------------
+
+Groq (primary provider):
+API base: https://api.groq.com/openai/v1
+SDK: npm install groq-sdk
+Auth: GROQ_API_KEY environment variable
+Free tier: ~14,400 requests/day per model
+
+Gemini (secondary provider):
+API base: https://generativelanguage.googleapis.com/v1beta
+No SDK required (use fetch directly)
+Auth: GEMINI_API_KEY environment variable
+Free tier: 1,500 requests/day on Flash
+
+Model Assignment Table:
+
+Feature 1 (concept tree + misconception):
+  Provider: Gemini
+  Model: gemini-2.0-flash
+  Reason: responseMimeType JSON enforcement, reliable structured output
+  Temperature: 0.7
+  Max tokens: 1000
+
+Feature 2 (Mia conversation streaming):
+  Provider: Groq
+  Model: llama-3.3-70b-versatile
+  Reason: 500-800 tokens/second streaming speed, good persona following
+  Temperature: 0.7
+  Max tokens: 500
+
+Feature 6 (misconception evaluator, optional):
+  Provider: Groq
+  Model: llama-3.1-8b-instant
+  Reason: Fastest and cheapest, binary classification task
+  Temperature: 0.0
+  Max tokens: 20
+
+Feature 7 (report generation):
+  Provider: Gemini
+  Model: gemini-2.0-flash
+  Reason: Most complex structured JSON output, responseMimeType enforcement
+  Temperature: 0.4
+  Max tokens: 1000
+
+Rate Limit Fallback:
+- If Groq returns 429: wait 3 seconds, retry once
+- If still failing: fall back to gemini-2.0-flash for that call
+- Never surface the error to the user
+
+Gemini API Call Pattern:
+fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_KEY, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.4
+    }
+  })
+})
+
+Groq Streaming Pattern:
+import Groq from "groq-sdk";
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const stream = await groq.chat.completions.create({
+  model: "llama-3.3-70b-versatile",
+  messages: [...],
+  max_tokens: 500,
+  stream: true,
+  temperature: 0.7
+});
+for await (const chunk of stream) {
+  const token = chunk.choices[0]?.delta?.content || "";
+  res.write(token);
+}
+
+--------------------------------------------------------------------------------
+SECTION 13 — BUILD PRIORITY ORDER
+--------------------------------------------------------------------------------
+
+Hours 0-2: Project setup
+  - Initialize Next.js 14 with TypeScript and Tailwind
+  - Configure Supabase (auth + two tables)
+  - Set up Google OAuth in Supabase dashboard
+  - Deploy skeleton to Vercel (live URL immediately)
+  - Add GROQ_API_KEY and GEMINI_API_KEY to Vercel env vars
+
+Hours 2-6: Feature 1 + Feature 2 foundations
+  - Build onboarding UI
+  - Write and test concept tree generation prompt on 5 topics
+  - Write and test Mia system prompt on 5 topics
+  - Get basic (non-streaming) Mia response working
+  - Validate metadata JSON parsing
+
+Hours 6-14: Feature 3 + Feature 4
+  - Build chat interface layout
+  - Implement streaming
+  - Get typing indicator working
+  - Build D3 radar chart (static first, then animated)
+  - Wire metadata to radar updates
+  - Wire metadata to session state
+
+Hours 14-18: Feature 5 + Feature 6
+  - Build 4 SVG avatar faces
+  - Implement CSS state transitions
+  - Implement idle breathing and random blink
+  - Build misconception detector state machine
+  - Wire avatar to metadata
+  - Test misconception flow end to end on demo topics
+
+Hours 18-22: Feature 7
+  - Build report generation API call
+  - Build opening score card with counter animation
+  - Build radar section with entrance animation
+  - Build blind spots missed section
+  - Build shareable card with download and copy link
+  - Test report on sessions with different coverage profiles
+
+Hours 22-25: Feature 8 + End-to-end testing
+  - Session history page
+  - Full end-to-end test on all 5 demo topics
+  - Fix bugs found during testing
+  - Practice demo flow
+  - Verify shareable card downloads and links work
+
+Hours 25-26: Buffer
+  - Fix any critical bugs from practice runs
+  - Sleep if possible
+
+--------------------------------------------------------------------------------
+SECTION 14 — DEMO TOPICS TO PREPARE
+--------------------------------------------------------------------------------
+
+Prepare and test all of the following before hackathon:
+
+1. Photosynthesis
+   - Verify 7-concept tree generates correctly
+   - Verify misconception triggers naturally around concept 3-4
+   - Test full session end to end
+   - Verify report generates accurately
+
+2. How React Hooks Work
+   - Verify technical concepts are accurate
+   - Verify misconception about useEffect triggers correctly
+   - Test full session end to end
+
+3. The French Revolution
+   - Verify historical concepts are appropriate depth
+   - Verify misconception triggers naturally
+   - Test full session end to end
+
+4. Evolution
+   - Verify biology concepts generate correctly
+   - Verify teleological fallacy misconception triggers naturally
+   - Test full session end to end
+
+5. Machine Learning Basics
+   - Verify technical concepts are at right level for non-experts
+   - Verify more-data misconception triggers correctly
+   - Test full session end to end
+
+For each topic, manually verify:
+- Concept tree has 5-8 appropriate concepts
+- Misconception sounds natural when Mia says it
+- Mia maintains student persona throughout
+- Radar updates correctly during session
+- Report is accurate to session data
+- Shareable card renders correctly
+
+--------------------------------------------------------------------------------
+SECTION 15 — CRITICAL RULES (NEVER VIOLATE)
+--------------------------------------------------------------------------------
+
+1. Mia never explains, teaches, or gives information. She only reacts, asks,
+   and confirms. If she starts explaining, the system prompt needs fixing.
+
+2. Metadata must never appear in the visible chat. stripPartialMetadata must
+   run on every streaming chunk, not just at the end.
+
+3. Conversation history passed to the API must always use clean_text
+   (metadata stripped). Passing raw responses with metadata breaks Mia's
+   persona by making her aware of the scoring system.
+
+4. The user never learns misconception detection is running during the session.
+   No UI element, no indicator, nothing. Silent.
+
+5. The report is stored permanently before rendering. Never regenerate it on
+   revisit. Always serve from database.
+
+6. Session state is saved every 5 messages minimum. A crash should never wipe
+   more than 5 messages.
+
+7. The shareable card download must work. This is the primary viral and demo
+   sharing mechanism. Test it on multiple browsers.
+
+8. Rate limit errors from Groq must never surface to the user. Retry once,
+   then fall back to Gemini silently.
+
+9. All depth score updates use max(existing, new). Depth scores never go
+   backward. If the user explains something more shallowly later, the highest
+   score for that concept is what counts.
+
+10. The report opening summary must accurately reflect the actual depth scores.
+    If it praises something the scores show as shallow, trust in the product
+    collapses. Validate this before demo.
+
+--------------------------------------------------------------------------------
+END OF DOCUMENT
+================================================================================
