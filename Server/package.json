@@ -1,5 +1,5 @@
 {
-  "name": "Socratic-server",
+  "name": "socratic-server",
   "version": "1.0.0",
   "description": "Backend server for Socratic app using Express and MongoDB",
   "main": "index.js",
