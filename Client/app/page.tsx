@@ -168,7 +168,7 @@ export default function Home() {
 
         {/* CTAs */}
         <div className="relative flex flex-wrap items-center justify-center gap-3 mb-10">
-          <Link href="/onboard">
+          <Link href="/choose">
             <button
               className="flex items-center gap-2 rounded-2xl px-8 py-3.5 text-white font-semibold text-[15px] transition-all active:scale-[0.98] hover:shadow-[0_8px_30px_rgba(0,137,123,0.4)]"
               style={{
@@ -360,7 +360,7 @@ export default function Home() {
           <p className="text-white/70 text-[15px] max-w-sm leading-relaxed">
             Pick a topic. Start teaching. Mia will find the gaps you didn't know you had.
           </p>
-          <Link href="/onboard">
+          <Link href="/choose">
             <button
               className="flex items-center gap-2 rounded-2xl px-8 py-3.5 font-semibold text-[15px] text-[#00695C] transition-all active:scale-[0.98] hover:bg-[#F0F9F7]"
               style={{ background: "#FFFFFF" }}
