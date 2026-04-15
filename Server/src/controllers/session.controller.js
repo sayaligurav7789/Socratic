@@ -431,9 +431,21 @@ RESPONSE RULES:
 - Ensure the JSON keys for concept_notes match the IDs: ${session.conceptTree.map(c => c.id).join(', ')}.
 `;
 
-        const responseText = await call_flash(prompt);
+        let responseText;
+        try {
+            responseText = await call_flash(prompt);
+        } catch (aiErr) {
+            console.error('Gemini report generation failed:', aiErr);
+            throw new Error('AI report generation failed: ' + aiErr.message);
+        }
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const reportData = JSON.parse(cleaned);
+        let reportData;
+        try {
+            reportData = JSON.parse(cleaned);
+        } catch (parseErr) {
+            console.error('Report JSON parse failed. Raw response:', cleaned.slice(0, 500));
+            throw new Error('Failed to parse AI report response as JSON');
+        }
 
         reportData.paste_behavior = {
             paste_count: typeof reportData?.paste_behavior?.paste_count === 'number'
@@ -447,7 +459,87 @@ RESPONSE RULES:
                 : null)
         };
 
-        // 3. Update Session
+        // 3. Generate source-authenticated study resources for concept gaps
+        const TRUSTED_DOMAINS = ['khanacademy.org', 'britannica.com', '.edu'];
+        const isTrustedSource = (url) => {
+            try {
+                const { hostname } = new URL(url);
+                return TRUSTED_DOMAINS.some(d => hostname.endsWith(d));
+            } catch {
+                return false;
+            }
+        };
+
+        const conceptGaps = session.conceptTree
+            .map(c => {
+                const notes = reportData.concept_notes?.[c.id];
+                return notes?.what_was_missed
+                    ? { id: c.id, name: c.name, gap: notes.what_was_missed }
+                    : null;
+            })
+            .filter(Boolean);
+
+        if (conceptGaps.length > 0) {
+            try {
+                const resourcePrompt = `You are an academic resource curator for a learning app.
+
+A student just finished a teaching session on: "${session.topic}"
+
+The following knowledge gaps were identified in their understanding:
+${conceptGaps.map((g, i) => `${i + 1}. Concept: "${g.name}" — Gap: "${g.gap}"`).join('\n')}
+
+For each gap, generate a structured study resource entry with:
+- concept_id: the concept identifier (use these exact values: ${conceptGaps.map(g => g.id).join(', ')})
+- concept: the concept name
+- gap_summary: one concise sentence describing exactly what they need to study
+- resources: array of exactly 2 objects, each with:
+  - title: a descriptive title of the resource (e.g. "Khan Academy: Light Reactions in Photosynthesis")
+  - url: a real, working URL ONLY from khanacademy.org, britannica.com, or a .edu university domain
+  - source_name: short name like "Khan Academy", "Britannica", or the university name
+  - type: one of "article", "video", or "lesson"
+
+Return ONLY valid JSON in this exact format (a JSON object with a "items" key):
+{
+  "items": [
+    {
+      "concept_id": "c1",
+      "concept": "...",
+      "gap_summary": "...",
+      "resources": [
+        { "title": "...", "url": "https://...", "source_name": "...", "type": "lesson" },
+        { "title": "...", "url": "https://...", "source_name": "...", "type": "article" }
+      ]
+    }
+  ]
+}`;
+
+                const resourceResponse = await call_llama_8b([
+                    { role: 'user', content: resourcePrompt }
+                ], { response_format: { type: 'json_object' } });
+                let resourceCleaned = resourceResponse.choices[0]?.message?.content || '[]';
+                resourceCleaned = resourceCleaned.replace(/```json/g, '').replace(/```/g, '').trim();
+                let parsedResource = JSON.parse(resourceCleaned);
+                const rawResources = Array.isArray(parsedResource)
+                    ? parsedResource
+                    : (parsedResource.items || parsedResource.resources || parsedResource.study_resources || Object.values(parsedResource)[0] || []);
+
+                reportData.studyResources = rawResources
+                    .filter(item => item && item.concept && item.gap_summary)
+                    .map(item => ({
+                        ...item,
+                        resources: Array.isArray(item.resources)
+                            ? item.resources.filter(r => r?.url && isTrustedSource(r.url))
+                            : [],
+                    }));
+            } catch (resourceError) {
+                console.error('Error generating study resources:', resourceError);
+                reportData.studyResources = [];
+            }
+        } else {
+            reportData.studyResources = [];
+        }
+
+        // 4. Update Session
         session.report = reportData;
         session.overallScore = reportData.overall_score || finalScore;
         session.status = 'completed';
