@@ -539,7 +539,10 @@ export default function SessionPage() {
                 const data = await res.json();
                 if (data.success) {
                     setSessionData(data.data);
-                    if (data.data.messages) {
+                    if (data.data.status === 'completed') {
+                        setIsSessionEnded(true);
+                    }
+                    if (data.data.messages && data.data.messages.length > 0) {
                         setMessages(data.data.messages.map((m: any) => ({
                             role: m.role,
                             content: m.clean_text || m.content
