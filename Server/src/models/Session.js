@@ -89,6 +89,11 @@ const sessionSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        persona: {
+            type: String,
+            enum: ['mia', 'leo'],
+            default: 'mia',
+        },
     },
     {
         timestamps: true,
