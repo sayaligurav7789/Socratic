@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Brain, Clock, Plus, Loader2 } from "lucide-react"
+import { ArrowRight, Brain, Clock, Plus, Loader2, PlayCircle } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import { BACKEND_URL } from "@/lib/config"
@@ -94,17 +94,21 @@ export default function SessionsPage() {
                 ) : (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                         {sessions.map((session) => {
-                            const style = getScoreStyles(session.score)
+                            const isActive = session.status === 'active' || session.status === 'initializing'
+                            const style = getScoreStyles(session.overallScore || session.score || 0)
+                            const href = isActive
+                                ? `/session/${session.sessionId || session._id}`
+                                : `/report/${session.sessionId || session._id}`
 
                             // Formatting the MongoDB date
                             const dateObj = new Date(session.createdAt)
                             const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 
                             return (
-                                <Link href={`/report/${session.sessionId || session._id}`} key={session.sessionId || session._id}>
+                                <Link href={href} key={session.sessionId || session._id}>
                                     <div
                                         className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer"
-                                        onMouseEnter={e => (e.currentTarget.style.borderColor = "#C8C5BC")}
+                                        onMouseEnter={e => (e.currentTarget.style.borderColor = isActive ? "#00897B" : "#C8C5BC")}
                                         onMouseLeave={e => (e.currentTarget.style.borderColor = "")}
                                     >
                                         <div>
@@ -112,45 +116,58 @@ export default function SessionsPage() {
                                             <div className="mb-4 flex items-center justify-between">
                                                 <div className="flex items-center gap-1.5 text-[12px] text-[#9898AA]">
                                                     <Clock size={13} />
-                                                    <span>{dateStr} • {session.duration}</span>
+                                                    <span>{dateStr}{session.duration ? ` • ${session.duration}` : ""}</span>
                                                 </div>
-                                                {/* Score Badge */}
-                                                <div
-                                                    className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
-                                                    style={{ background: style.bg, color: style.text }}
-                                                >
-                                                    <Brain size={12} strokeWidth={2.5} />
-                                                    <span style={{ fontSize: "12px", fontWeight: 600 }}>
-                                                        {session.score}% — {style.label}
-                                                    </span>
-                                                </div>
+                                                {/* Status / Score Badge */}
+                                                {isActive ? (
+                                                    <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-[#E8F8F4] text-[#00695C]">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-[#00897B] animate-pulse" />
+                                                        <span style={{ fontSize: "12px", fontWeight: 600 }}>In Progress</span>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
+                                                        style={{ background: style.bg, color: style.text }}
+                                                    >
+                                                        <Brain size={12} strokeWidth={2.5} />
+                                                        <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                                                            {session.overallScore || session.score || 0}% — {style.label}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Topic */}
                                             <h3
-                                                className="mb-3 text-[18px] font-semibold text-[#1A1A2E] leading-tight group-hover:text-[#00897B] transition-colors"
+                                                className="mb-3 text-[18px] font-semibold text-[#1A1A2E] dark:text-[#EEEEFF] leading-tight group-hover:text-[#00897B] transition-colors"
                                             >
                                                 {session.topic}
                                             </h3>
 
                                             {/* Concepts Tags */}
                                             <div className="flex flex-wrap gap-2 mb-6">
-                                                {session.concepts?.map((concept: string) => (
+                                                {(session.conceptTree || session.concepts)?.slice(0, 4).map((concept: any) => (
                                                     <span
-                                                        key={concept}
-                                                        className="rounded-lg px-2.5 py-1 text-[11px] font-medium text-[#4A4A68] bg-[#F0EEE9] dark:bg-white/[0.06] border border-[#E2DFD8] dark:border-white/[0.08]"
+                                                        key={typeof concept === 'string' ? concept : concept.id}
+                                                        className="rounded-lg px-2.5 py-1 text-[11px] font-medium text-[#4A4A68] dark:text-[#9898BB] bg-[#F0EEE9] dark:bg-white/[0.06] border border-[#E2DFD8] dark:border-white/[0.08]"
                                                     >
-                                                        {concept}
+                                                        {typeof concept === 'string' ? concept : concept.name}
                                                     </span>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        {/* Bottom View Link */}
+                                        {/* Bottom Action Row */}
                                         <div className="flex items-center justify-end border-t border-[#E2DFD8] dark:border-white/[0.08] pt-4 mt-auto">
-                                            <span className="flex items-center gap-1 text-[13px] font-medium text-[#00897B] transition-transform group-hover:translate-x-1">
-                                                View Report <ArrowRight size={14} />
-                                            </span>
+                                            {isActive ? (
+                                                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#00897B] transition-transform group-hover:translate-x-1">
+                                                    <PlayCircle size={15} /> Resume Session
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1 text-[13px] font-medium text-[#00897B] transition-transform group-hover:translate-x-1">
+                                                    View Report <ArrowRight size={14} />
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </Link>
