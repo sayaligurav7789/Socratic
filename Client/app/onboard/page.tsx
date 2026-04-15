@@ -5,19 +5,21 @@ import { InteractiveGridPattern } from "@/components/ui/interactive-grid-pattern
 import { OrbitingCircles } from "@/components/ui/orbiting-circles"
 import { Brain, BookOpen, Sparkles, Lightbulb, Pencil, Loader2, FileText, X } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
 import { BACKEND_URL } from "@/lib/config"
 
-const LOADING_MESSAGES = [
-    "Understanding your topic...",
-    "Building Mia's knowledge...",
-    "Preparing your session..."
-]
-
 const Onboard = () => {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const persona = (searchParams.get("persona") === "leo" ? "leo" : "mia") as "mia" | "leo"
+    const personaName = persona === "leo" ? "Leo" : "Mia"
+    const LOADING_MESSAGES = [
+        "Understanding your topic...",
+        `Building ${personaName}'s knowledge...`,
+        "Preparing your session..."
+    ]
     const { user } = useUser()
     const { resolvedTheme } = useTheme()
     const isDark = resolvedTheme === "dark"
@@ -81,6 +83,7 @@ const Onboard = () => {
             const formData = new FormData()
             formData.append("topic", topic)
             formData.append("user_id", user.id)
+            formData.append("persona", persona)
             
             // Pass primary user info to allow backend lazy-creation if webhook was missed
             if (user.primaryEmailAddress) formData.append("email", user.primaryEmailAddress.emailAddress)
