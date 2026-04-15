@@ -81,7 +81,7 @@ export const createSession = async (req, res) => {
 
 export const initSession = async (req, res) => {
     try {
-        const { topic, user_id, source_url } = req.body;
+        const { topic, user_id, source_url, persona } = req.body;
         const file = req.file;
 
         if (!topic || !user_id) {
@@ -252,13 +252,12 @@ Return this exact shape:
   }
 }`;
             const combinedPrompt = `${geminiSystemPrompt}\n\n${geminiUserPrompt}`;
-            const treeResponseText = await call_flash(combinedPrompt);
-
             try {
+                const treeResponseText = await call_flash(combinedPrompt);
                 const cleanedResponse = treeResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
                 parsed = JSON.parse(cleanedResponse);
             } catch (e) {
-                console.error("Failed to parse Gemini JSON:", e, treeResponseText);
+                console.warn("Gemini unavailable or returned invalid JSON, using fallback concept tree:", e?.message || e);
                 parsed = fallback(topic);
             }
         }
@@ -278,7 +277,8 @@ Return this exact shape:
             depthScores: depth_scores,
             sourceText: source_text,
             messages: [],
-            blindSpots: []
+            blindSpots: [],
+            persona: persona === 'leo' ? 'leo' : 'mia',
         });
 
         user.sessions.push(newSession._id);
