@@ -1,14 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Brain, Clock, Plus, Loader2, PlayCircle } from "lucide-react"
+import { ArrowRight, Brain, Clock, Plus, Loader2, PlayCircle, Flame, Trophy, CalendarDays } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import { BACKEND_URL } from "@/lib/config"
 
-// Removed dummy MOCK_SESSIONS
-
-// Function to map score to color scheme based on PRD Mastery Scale
 function getScoreStyles(score: number) {
     if (score >= 80) return { bg: "#E8F8F4", text: "#00695C", label: "Strong" }
     if (score >= 60) return { bg: "#EEF0FF", text: "#3D30C4", label: "Good" }
@@ -16,34 +13,45 @@ function getScoreStyles(score: number) {
     return { bg: "#FFF7ED", text: "#C2410C", label: "Early stage" }
 }
 
+type StreakData = {
+    currentStreak: number
+    longestStreak: number
+    totalDays: number
+    lastActiveDate: string | null
+}
+
 export default function SessionsPage() {
     const { isLoaded, isSignedIn, user } = useUser()
     const [sessions, setSessions] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [streak, setStreak] = useState<StreakData | null>(null)
 
     useEffect(() => {
-        const fetchSessions = async () => {
+        const fetchData = async () => {
             if (!isLoaded || !isSignedIn || !user) {
                 if (isLoaded && !isSignedIn) setLoading(false);
                 return;
             }
 
             try {
-                // Fetch directly from the backend server.
-                const response = await fetch(`${BACKEND_URL}/api/users/${user.id}/sessions`);
-                const result = await response.json();
+                const [sessionsRes, streakRes] = await Promise.all([
+                    fetch(`${BACKEND_URL}/api/users/${user.id}/sessions`),
+                    fetch(`${BACKEND_URL}/api/users/${user.id}/streak`),
+                ]);
 
-                if (result.success) {
-                    setSessions(result.data);
-                }
+                const sessionsData = await sessionsRes.json();
+                const streakData = await streakRes.json();
+
+                if (sessionsData.success) setSessions(sessionsData.data);
+                if (streakData.success) setStreak(streakData.data);
             } catch (err) {
-                console.error("Failed to fetch sessions:", err);
+                console.error("Failed to fetch data:", err);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchSessions();
+        fetchData();
     }, [isLoaded, isSignedIn, user]);
 
     return (
@@ -51,7 +59,7 @@ export default function SessionsPage() {
             <div className="mx-auto max-w-5xl">
 
                 {/* Header */}
-                <div className="mb-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+                <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
                     <div>
                         <h1
                             className="text-[#1A1A2E] dark:text-[#EEEEFF]"
@@ -65,7 +73,7 @@ export default function SessionsPage() {
                         >
                             Your Sessions
                         </h1>
-                        <p className="mt-2 text-[15px] text-[#4A4A68]">
+                        <p className="mt-2 text-[15px] text-[#4A4A68] dark:text-[#9898AA]">
                             Review past teaching sessions and mastery reports.
                         </p>
                     </div>
@@ -85,6 +93,53 @@ export default function SessionsPage() {
                         </button>
                     </Link>
                 </div>
+
+                {/* Streak Stats Bar */}
+                {streak && (
+                    <div className="mb-10 grid grid-cols-3 gap-4">
+                        {/* Current Streak */}
+                        <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] px-5 py-4 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF3E0] text-[#F57C00]">
+                                <Flame size={20} strokeWidth={2} />
+                            </div>
+                            <div>
+                                <p className="text-[22px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] leading-none">
+                                    {streak.currentStreak}
+                                    <span className="ml-1 text-[13px] font-normal text-[#9898AA]">day{streak.currentStreak !== 1 ? "s" : ""}</span>
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">Current streak</p>
+                            </div>
+                        </div>
+
+                        {/* Longest Streak */}
+                        <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] px-5 py-4 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF0FF] text-[#3D30C4]">
+                                <Trophy size={20} strokeWidth={2} />
+                            </div>
+                            <div>
+                                <p className="text-[22px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] leading-none">
+                                    {streak.longestStreak}
+                                    <span className="ml-1 text-[13px] font-normal text-[#9898AA]">day{streak.longestStreak !== 1 ? "s" : ""}</span>
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">Longest streak</p>
+                            </div>
+                        </div>
+
+                        {/* Total Active Days */}
+                        <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] px-5 py-4 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F8F4] text-[#00695C]">
+                                <CalendarDays size={20} strokeWidth={2} />
+                            </div>
+                            <div>
+                                <p className="text-[22px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] leading-none">
+                                    {streak.totalDays}
+                                    <span className="ml-1 text-[13px] font-normal text-[#9898AA]">day{streak.totalDays !== 1 ? "s" : ""}</span>
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">Total active days</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Sessions Grid */}
                 {loading ? (
