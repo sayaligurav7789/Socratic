@@ -4,7 +4,6 @@ import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import {
-    Trophy,
     Target,
     Zap,
     AlertCircle,
@@ -22,7 +21,6 @@ import {
 import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
 import { DotPattern } from "@/components/ui/dot-pattern"
-import html2canvas from "html2canvas"
 
 export default function ReportPage() {
     const params = useParams()
@@ -34,9 +32,7 @@ export default function ReportPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [statusMessage, setStatusMessage] = useState("Reviewing your session...")
 
-    // For share card download
     const reportRef = useRef<HTMLDivElement>(null)
-    const shareCardRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         if (!id) return
@@ -105,30 +101,171 @@ export default function ReportPage() {
         return () => clearInterval(interval)
     }, [isLoading])
 
-    const handleDownload = async () => {
-        if (!shareCardRef.current) return
+    const handleDownload = () => {
+        const canvas = document.createElement('canvas')
+        const scale = 2
+        canvas.width = 600 * scale
+        canvas.height = 860 * scale
+        const ctx = canvas.getContext('2d')!
+        ctx.scale(scale, scale)
 
-        // Temporarily show the card for capture
-        const card = shareCardRef.current
-        card.style.display = 'block'
-        card.style.opacity = '1'
-        card.style.position = 'fixed'
-        card.style.top = '0'
-        card.style.left = '0'
-        card.style.zIndex = '9999'
+        // Background
+        ctx.fillStyle = '#F5F3EE'
+        ctx.fillRect(0, 0, 600, 860)
 
-        await new Promise(resolve => setTimeout(resolve, 100))
-        const canvas = await html2canvas(card, {
-            backgroundColor: "#F5F3EE",
-            scale: 2,
-            logging: false,
-            useCORS: true,
-            width: 600,
-            height: 800
-        } as any)
+        // Top accent bar
+        ctx.fillStyle = '#00897B'
+        ctx.fillRect(0, 0, 600, 6)
 
-        card.style.display = 'none'
+        // Header
+        ctx.fillStyle = '#1A1A2E'
+        ctx.font = 'bold 26px serif'
+        ctx.fillText('Socratic', 48, 60)
+        ctx.fillStyle = '#9898AA'
+        ctx.font = '11px sans-serif'
+        ctx.fillText(`MASTERY REPORT · ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()}`, 48, 80)
 
+        // Score badge (top right)
+        const scoreColor = report.overall_score >= 80 ? '#00695C' : report.overall_score >= 60 ? '#3D30C4' : report.overall_score >= 40 ? '#B45309' : '#C2410C'
+        const scoreLabel = report.overall_score >= 80 ? 'Strong' : report.overall_score >= 60 ? 'Good' : report.overall_score >= 40 ? 'Developing' : 'Early Stage'
+        ctx.fillStyle = scoreColor
+        ctx.beginPath()
+        ctx.roundRect(480, 36, 76, 56, 14)
+        ctx.fill()
+        ctx.fillStyle = '#ffffff'
+        ctx.font = 'bold 28px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(String(report.overall_score), 518, 67)
+        ctx.font = 'bold 10px sans-serif'
+        ctx.fillText(scoreLabel.toUpperCase(), 518, 83)
+        ctx.textAlign = 'left'
+
+        // Divider
+        ctx.strokeStyle = '#E2DFD8'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(48, 108)
+        ctx.lineTo(552, 108)
+        ctx.stroke()
+
+        // Topic
+        ctx.fillStyle = '#9898AA'
+        ctx.font = 'bold 10px sans-serif'
+        ctx.fillText('TOPIC', 48, 134)
+        ctx.fillStyle = '#1A1A2E'
+        ctx.font = 'bold 32px serif'
+        const topicText = session?.topic || 'Session'
+        const maxWidth = 504
+        ctx.fillText(topicText.length > 30 ? topicText.slice(0, 30) + '…' : topicText, 48, 170)
+
+        // Summary quote
+        ctx.fillStyle = '#4A4A68'
+        ctx.font = 'italic 15px serif'
+        const summary = `"${report.opening_summary || ''}"`
+        const words = summary.split(' ')
+        let line = ''
+        let y = 210
+        for (const word of words) {
+            const test = line ? `${line} ${word}` : word
+            if (ctx.measureText(test).width > maxWidth && line) {
+                ctx.fillText(line, 48, y)
+                line = word
+                y += 22
+            } else {
+                line = test
+            }
+        }
+        if (line) { ctx.fillText(line, 48, y); y += 22 }
+        y += 16
+
+        // Stats row
+        const stats = [
+            { label: 'TIME SPENT', value: `${session?.durationMinutes || 0}m` },
+            { label: 'EXPLANATIONS', value: String(session?.messages?.filter((m: any) => m.role === 'user').length || 0) },
+            { label: 'PASTE EVENTS', value: String(session?.pasteCount || 0) }
+        ]
+        stats.forEach((stat, i) => {
+            const x = 48 + i * 172
+            ctx.fillStyle = '#FFFFFF'
+            ctx.beginPath()
+            ctx.roundRect(x, y, 155, 72, 12)
+            ctx.fill()
+            ctx.strokeStyle = '#E2DFD8'
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.roundRect(x, y, 155, 72, 12)
+            ctx.stroke()
+            ctx.fillStyle = '#9898AA'
+            ctx.font = 'bold 9px sans-serif'
+            ctx.fillText(stat.label, x + 14, y + 22)
+            ctx.fillStyle = '#1A1A2E'
+            ctx.font = 'bold 26px sans-serif'
+            ctx.fillText(stat.value, x + 14, y + 56)
+        })
+        y += 88
+
+        // Concept breakdown title
+        ctx.fillStyle = '#9898AA'
+        ctx.font = 'bold 10px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('──────   CONCEPT BREAKDOWN   ──────', 300, y + 16)
+        ctx.textAlign = 'left'
+        y += 36
+
+        // Concept bars
+        const concepts = session?.conceptTree || []
+        const depthScores = session?.depthScores || {}
+        const maxConcepts = Math.min(concepts.length, 6)
+        for (let i = 0; i < maxConcepts; i++) {
+            const concept = concepts[i]
+            const score = depthScores[concept.id] || 0
+            const barY = y + i * 44
+
+            // Concept name
+            ctx.fillStyle = '#1A1A2E'
+            ctx.font = `${score >= 4 ? 'bold' : 'normal'} 13px sans-serif`
+            const name = concept.name.length > 32 ? concept.name.slice(0, 32) + '…' : concept.name
+            ctx.fillText(name, 48, barY + 14)
+
+            // Score dots
+            for (let s = 1; s <= 5; s++) {
+                ctx.fillStyle = s <= score ? '#00897B' : '#E2DFD8'
+                ctx.beginPath()
+                ctx.roundRect(366 + (s - 1) * 38, barY, 32, 10, 5)
+                ctx.fill()
+            }
+
+            // Mastery badge
+            if (score >= 4) {
+                ctx.fillStyle = '#E8F8F4'
+                ctx.beginPath()
+                ctx.roundRect(48, barY + 20, 55, 16, 8)
+                ctx.fill()
+                ctx.fillStyle = '#00695C'
+                ctx.font = 'bold 9px sans-serif'
+                ctx.fillText('✦ MASTERY', 54, barY + 32)
+            }
+
+            // Row divider
+            if (i < maxConcepts - 1) {
+                ctx.strokeStyle = '#E2DFD8'
+                ctx.lineWidth = 0.5
+                ctx.beginPath()
+                ctx.moveTo(48, barY + 40)
+                ctx.lineTo(552, barY + 40)
+                ctx.stroke()
+            }
+        }
+
+        // Footer
+        ctx.fillStyle = '#E2DFD8'
+        ctx.fillRect(0, 824, 600, 1)
+        ctx.fillStyle = '#9898AA'
+        ctx.font = '11px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('Generated by Socratic · Verified Mastery Report', 300, 848)
+
+        // Download
         const link = document.createElement('a')
         link.download = `Socratic-report-${session?.topic || 'session'}.png`
         link.href = canvas.toDataURL('image/png')
@@ -458,58 +595,6 @@ export default function ReportPage() {
                         Share Result
                     </button>
                 </section>
-            </div>
-
-            {/* 7. Hidden Share Card for Download */}
-            <div
-                ref={shareCardRef}
-                style={{ display: 'none', width: '600px' }}
-                className="bg-[#F5F3EE] p-12 text-[#1A1A2E] font-sans relative"
-            >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#00897B]/10 blur-[80px] -z-10" />
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#5849E8]/10 blur-[80px] -z-10" />
-
-                <div className="flex justify-between items-start mb-12">
-                    <div>
-                        <h1 className="text-[28px] font-serif tracking-tight">Socratic</h1>
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA]">Mastery Report · {new Date().toLocaleDateString()}</p>
-                    </div>
-                    <div className="bg-[#00897B] text-white px-4 py-2 rounded-xl text-[20px] font-bold">
-                        {report.overall_score}
-                    </div>
-                </div>
-
-                <div className="mb-12">
-                    <p className="text-[13px] font-bold uppercase tracking-widest text-[#4A4A68] mb-1">Topic</p>
-                    <h2 className="text-[36px] font-bold leading-none">{session.topic}</h2>
-                </div>
-
-                <div className="grid grid-cols-3 gap-6 mb-12">
-                    <div className="bg-white/60 border border-white p-6 rounded-3xl">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA] mb-2">Explanations</p>
-                        <p className="text-[24px] font-bold">{session.messages.filter((m: any) => m.role === 'user').length}</p>
-                    </div>
-                    <div className="bg-white/60 border border-white p-6 rounded-3xl">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA] mb-2">Duration</p>
-                        <p className="text-[24px] font-bold">{session.durationMinutes}m</p>
-                    </div>
-                    <div className="bg-white/60 border border-white p-6 rounded-3xl">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA] mb-2">Paste Events</p>
-                        <p className="text-[24px] font-bold">{session.pasteCount || 0}</p>
-                    </div>
-                </div>
-
-                <div className="bg-white/80 border border-white p-8 rounded-[2.5rem] mb-12 flex items-center justify-center aspect-square shadow-sm">
-                    {/* Note: In a real app, you'd want a static image or a separate render of the radar here */}
-                    <div className="text-center">
-                        <Trophy className="mx-auto mb-4 text-[#00897B]" size={48} />
-                        <p className="text-[18px] font-serif italic">"{report.opening_summary}"</p>
-                    </div>
-                </div>
-
-                <div className="text-center text-[#9898AA] text-[12px]">
-                    teachback.app/report/{id}
-                </div>
             </div>
 
             {/* Public Footer */}

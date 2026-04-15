@@ -31,6 +31,7 @@ export default function SessionPage() {
 
     const [sessionData, setSessionData] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const personaName = sessionData?.persona === "leo" ? "Leo" : "Mia"
 
     const [messages, setMessages] = useState<any[]>([])
     const [hasInput, setHasInput] = useState(false)
@@ -546,7 +547,7 @@ export default function SessionPage() {
                     } else {
                         setMessages([{
                             role: "assistant",
-                            content: "Hi! I'm Mia. I'm ready to learn about this topic from you. Where should we start?"
+                            content: `Hi! I'm ${data.data.persona === 'leo' ? 'Leo' : 'Mia'}. I'm ready to learn about this topic from you. Where should we start?`
                         }]);
                     }
                 }
@@ -892,7 +893,7 @@ export default function SessionPage() {
                                     <Sparkles className="text-[#00897B]" size={20} />
                                     {sessionData?.topic || "Loading Topic..."}
                                 </h1>
-                                <p className="text-[13px] text-[#4A4A68] dark:text-[#8080AA] mt-0.5">Teaching Mia everything you know</p>
+                                <p className="text-[13px] text-[#4A4A68] dark:text-[#8080AA] mt-0.5">Teaching {personaName} everything you know</p>
                             </div>
 
                             <div className="flex items-center gap-2">
@@ -970,7 +971,7 @@ export default function SessionPage() {
                                     </div>
                                     <div>
                                         <h3 className="text-[18px] font-bold text-[#00695C]">Session Successfully Concluded!</h3>
-                                        <p className="text-[14px] text-[#00695C]/80 mt-1">Mia has a much better understanding of {sessionData?.topic} now.</p>
+                                        <p className="text-[14px] text-[#00695C]/80 mt-1">{personaName} has a much better understanding of {sessionData?.topic} now.</p>
                                     </div>
                                     <button
                                         onClick={() => router.push(`/report/${id}`)}
@@ -1270,7 +1271,7 @@ export default function SessionPage() {
                             <div>
                                 <h2 className="text-[22px] font-bold text-[#1A1A2E]">End this session?</h2>
                                 <p className="text-[15px] text-[#4A4A68] mt-2">
-                                    You can end the session now to see your mastery report, or keep teaching Mia to cover more concepts.
+                                    You can end the session now to see your mastery report, or keep teaching {personaName} to cover more concepts.
                                 </p>
                             </div>
                             <div className="flex flex-col w-full gap-3 mt-2">
