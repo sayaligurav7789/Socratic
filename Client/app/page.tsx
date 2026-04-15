@@ -301,7 +301,7 @@ export default function Home() {
                 <div
                   className="mb-4 flex h-9 w-9 items-center justify-center rounded-full transition-transform group-hover:scale-110"
                   style={{ background: f.lightBg, color: f.color }}
-                >
+                > 
                   {f.icon}
                 </div>
                 <h3 className="mb-1.5 text-[15px] font-semibold text-[#1A1A2E] dark:text-[#DDDDEF]">{f.title}</h3>
