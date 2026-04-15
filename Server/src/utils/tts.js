@@ -2,6 +2,20 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({});
 
+// Voice assignments per persona.
+// To change Leo's voice, update voiceName below.
+// Available Gemini voices: Aoede, Charon, Fenrir, Kore, Leda, Orus, Puck, Zephyr
+const PERSONA_VOICES = {
+    mia: {
+        voiceName: "Leda",
+        prompt: "Read aloud in a childish student-like, warm, welcoming tone: "
+    },
+    leo: {
+        voiceName: "Puck",
+        prompt: "Read aloud in a relaxed, casual, laid-back tone like a chill student just getting the gist: "
+    }
+};
+
 function pcm16leToWavBuffer(pcmBuffer, { sampleRate = 24000, channels = 1, bitDepth = 16 } = {}) {
     const byteRate = sampleRate * channels * (bitDepth / 8);
     const blockAlign = channels * (bitDepth / 8);
@@ -28,30 +42,25 @@ function pcm16leToWavBuffer(pcmBuffer, { sampleRate = 24000, channels = 1, bitDe
     return wavBuffer;
 }
 
-export async function synthesizeMiaSpeech(text) {
-    if (!text || !text.trim()) {
-        return null;
-    }
+export async function synthesizeSpeech(text, persona = "mia") {
+    if (!text || !text.trim()) return null;
 
-    const spokenText = `Read aloud in a childish student-like, warm, welcoming tone: ${text}`;
+    const { voiceName, prompt } = PERSONA_VOICES[persona] || PERSONA_VOICES.mia;
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: spokenText }] }],
+        contents: [{ parts: [{ text: `${prompt}${text}` }] }],
         config: {
             responseModalities: ["AUDIO"],
             speechConfig: {
                 voiceConfig: {
-                    prebuiltVoiceConfig: {
-                        voiceName: "Leda"
-                    }
+                    prebuiltVoiceConfig: { voiceName }
                 }
             }
         }
     });
 
     const candidates = response.candidates || [];
-
     for (const candidate of candidates) {
         const parts = candidate?.content?.parts || [];
         for (const part of parts) {
@@ -65,12 +74,12 @@ export async function synthesizeMiaSpeech(text) {
                 bitDepth: 16
             });
 
-            return {
-                mimeType: "audio/wav",
-                data: wavBuffer.toString("base64")
-            };
+            return { mimeType: "audio/wav", data: wavBuffer.toString("base64") };
         }
     }
 
     return null;
 }
+
+// Backward-compatible alias
+export const synthesizeMiaSpeech = (text) => synthesizeSpeech(text, "mia");
