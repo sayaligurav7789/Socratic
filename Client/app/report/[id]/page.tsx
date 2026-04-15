@@ -16,7 +16,13 @@ import {
     Quote,
     CheckCircle2,
     XCircle,
-    Loader2
+    Loader2,
+    BookOpen,
+    X,
+    ExternalLink,
+    GraduationCap,
+    FileText,
+    PlayCircle
 } from "lucide-react"
 import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
@@ -31,6 +37,7 @@ export default function ReportPage() {
     const [report, setReport] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [statusMessage, setStatusMessage] = useState("Reviewing your session...")
+    const [showResources, setShowResources] = useState(false)
 
     const reportRef = useRef<HTMLDivElement>(null)
 
@@ -55,11 +62,14 @@ export default function ReportPage() {
                 if (data.success) {
                     setSession(data.data)
 
-                    if (data.data.report) {
-                        setReport(data.data.report)
+                    const existingReport = data.data.report
+                    const needsRegeneration = !existingReport || !('studyResources' in (existingReport || {}))
+
+                    if (existingReport && !needsRegeneration) {
+                        setReport(existingReport)
                         setIsLoading(false)
                     } else {
-                        // 2. Generate report if it doesn't exist
+                        // Generate or regenerate report (missing or missing correctedConcepts)
                         setStatusMessage("Analyzing your explanations...")
                         const reportRes = await fetch(`${BACKEND_URL}/api/sessions/${id}/report`, {
                             method: 'POST'
@@ -572,28 +582,60 @@ export default function ReportPage() {
                 )}
 
                 {/* 6. Actions */}
-                <section className="flex flex-col sm:flex-row items-center justify-center gap-4 py-20">
-                    <button
-                        onClick={() => router.push('/onboard')}
-                        className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#00897B] text-white font-bold shadow-xl hover:scale-105 transition active:scale-95 flex items-center justify-center gap-2"
-                    >
-                        <RefreshCcw size={18} />
-                        Teach Something Else
-                    </button>
-                    <button
-                        onClick={handleDownload}
-                        className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white border border-[#E2DFD8] text-[#1A1A2E] font-bold shadow-md hover:bg-[#F7F6F2] transition active:scale-95 flex items-center justify-center gap-2"
-                    >
-                        <Download size={18} />
-                        Download Report
-                    </button>
-                    <button
-                        onClick={copyLink}
-                        className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white border border-[#E2DFD8] text-[#1A1A2E] font-bold shadow-md hover:bg-[#F7F6F2] transition active:scale-95 flex items-center justify-center gap-2"
-                    >
-                        <LinkIcon size={18} />
-                        Share Result
-                    </button>
+                <section className="py-20 space-y-4">
+                    {/* Source-Authenticated Corrections — featured full-width button */}
+                    {report.studyResources && report.studyResources.length > 0 && (
+                        <motion.button
+                            onClick={() => setShowResources(true)}
+                            whileHover={{ scale: 1.015 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="w-full group relative overflow-hidden rounded-3xl px-8 py-6 flex items-center justify-between gap-6 shadow-2xl"
+                            style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #2D2B55 60%, #3D30C4 100%)' }}
+                        >
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                style={{ background: 'linear-gradient(135deg, #2D2B55 0%, #3D30C4 60%, #5849E8 100%)' }}
+                            />
+                            <div className="relative flex items-center gap-5">
+                                <div className="h-12 w-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                                    <BookOpen size={22} className="text-white" />
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-[17px] font-bold text-white leading-tight">Source-Authenticated Corrections</div>
+                                    <div className="text-[13px] text-white/60 mt-0.5">
+                                        {report.studyResources.length} gap{report.studyResources.length !== 1 ? 's' : ''} · verified resources from Khan Academy, Britannica & .edu
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="relative shrink-0 h-9 w-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                <ExternalLink size={15} className="text-white" />
+                            </div>
+                        </motion.button>
+                    )}
+
+                    {/* Secondary row */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <button
+                            onClick={() => router.push('/onboard')}
+                            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-[#00897B] text-white font-bold shadow-lg hover:scale-105 transition active:scale-95 flex items-center justify-center gap-2 text-[14px]"
+                        >
+                            <RefreshCcw size={16} />
+                            Teach Something Else
+                        </button>
+                        <button
+                            onClick={handleDownload}
+                            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white border border-[#E2DFD8] text-[#1A1A2E] font-bold shadow-sm hover:bg-[#F7F6F2] transition active:scale-95 flex items-center justify-center gap-2 text-[14px]"
+                        >
+                            <Download size={16} />
+                            Download Report
+                        </button>
+                        <button
+                            onClick={copyLink}
+                            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white border border-[#E2DFD8] text-[#1A1A2E] font-bold shadow-sm hover:bg-[#F7F6F2] transition active:scale-95 flex items-center justify-center gap-2 text-[14px]"
+                        >
+                            <LinkIcon size={16} />
+                            Share Result
+                        </button>
+                    </div>
                 </section>
             </div>
 
@@ -603,6 +645,112 @@ export default function ReportPage() {
                     Powered by <span className="font-bold text-[#1A1A2E]">Socratic</span> · Verified Mastery Report
                 </p>
             </footer>
+
+            {/* Source-Authenticated Corrections Slide-Over Panel */}
+            <AnimatePresence>
+                {showResources && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowResources(false)}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                        />
+
+                        {/* Panel */}
+                        <motion.div
+                            initial={{ x: "100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "100%" }}
+                            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                            className="fixed right-0 top-0 z-50 h-full w-full max-w-xl bg-[#F5F3EE] dark:bg-[#0D0D18] shadow-2xl overflow-y-auto"
+                        >
+                            {/* Panel Header */}
+                            <div className="sticky top-0 z-10 bg-[#F5F3EE]/90 dark:bg-[#0D0D18]/90 backdrop-blur-md border-b border-[#E2DFD8] px-8 py-6 flex items-start justify-between gap-4">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <GraduationCap size={18} className="text-[#00897B]" />
+                                        <h2 className="text-[18px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">Source-Authenticated Corrections</h2>
+                                    </div>
+                                    <p className="text-[13px] text-[#9898AA]">
+                                        Trusted study resources for every knowledge gap identified in your session.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowResources(false)}
+                                    className="shrink-0 p-2 rounded-xl hover:bg-[#E2DFD8] transition-colors"
+                                >
+                                    <X size={20} className="text-[#4A4A68]" />
+                                </button>
+                            </div>
+
+                            {/* Panel Content */}
+                            <div className="px-8 py-8 space-y-8">
+                                {report.studyResources.map((item: any, idx: number) => (
+                                    <motion.div
+                                        key={idx}
+                                        initial={{ y: 16, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        transition={{ delay: idx * 0.08 }}
+                                        className="rounded-3xl border border-[#E2DFD8] bg-white dark:bg-[#1A1A2E] overflow-hidden"
+                                    >
+                                        {/* Concept Header */}
+                                        <div className="px-6 pt-6 pb-4 border-b border-[#E2DFD8]">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="h-2 w-2 rounded-full bg-[#00897B]" />
+                                                <span className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA]">Gap identified</span>
+                                            </div>
+                                            <h3 className="text-[16px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] mb-1">{item.concept}</h3>
+                                            <p className="text-[13px] text-[#4A4A68] dark:text-[#9898AA] leading-relaxed">{item.gap_summary}</p>
+                                        </div>
+
+                                        {/* Resources */}
+                                        <div className="px-6 py-5 space-y-3">
+                                            <div className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA] mb-3">Study Resources</div>
+                                            {item.resources && item.resources.length > 0 ? item.resources.map((res: any, rIdx: number) => {
+                                                const typeIcon = res.type === 'video'
+                                                    ? <PlayCircle size={14} className="text-[#5849E8]" />
+                                                    : res.type === 'lesson'
+                                                    ? <GraduationCap size={14} className="text-[#00897B]" />
+                                                    : <FileText size={14} className="text-[#B45309]" />
+                                                const typeColor = res.type === 'video'
+                                                    ? 'bg-[#F3F0FF] text-[#5849E8]'
+                                                    : res.type === 'lesson'
+                                                    ? 'bg-[#E8F8F4] text-[#00695C]'
+                                                    : 'bg-[#FEF3C7] text-[#B45309]'
+                                                return (
+                                                    <a
+                                                        key={rIdx}
+                                                        href={res.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-start gap-4 p-4 rounded-2xl border border-[#E2DFD8] hover:border-[#00897B]/40 hover:bg-[#F5F3EE] dark:hover:bg-[#0D0D18] transition-all group"
+                                                    >
+                                                        <div className={`mt-0.5 shrink-0 p-2 rounded-xl ${typeColor}`}>
+                                                            {typeIcon}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-[14px] font-semibold text-[#1A1A2E] dark:text-[#EEEEFF] leading-snug group-hover:text-[#00897B] transition-colors">
+                                                                {res.title}
+                                                            </div>
+                                                            <div className="text-[12px] text-[#9898AA] mt-0.5">{res.source_name}</div>
+                                                        </div>
+                                                        <ExternalLink size={14} className="shrink-0 mt-1 text-[#9898AA] group-hover:text-[#00897B] transition-colors" />
+                                                    </a>
+                                                )
+                                            }) : (
+                                                <p className="text-[13px] text-[#9898AA] italic">No verified sources available for this gap.</p>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     )
 }
