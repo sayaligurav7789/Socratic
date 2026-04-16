@@ -12,6 +12,7 @@ export interface OrbitingCirclesProps extends React.HTMLAttributes<HTMLDivElemen
   path?: boolean
   iconSize?: number
   speed?: number
+  pathColor?: string
 }
 
 export function OrbitingCircles({
@@ -23,6 +24,7 @@ export function OrbitingCircles({
   path = true,
   iconSize = 30,
   speed = 1,
+  pathColor,
   ...props
 }: OrbitingCirclesProps) {
   const calculatedDuration = duration / speed
@@ -35,7 +37,9 @@ export function OrbitingCircles({
           className="pointer-events-none absolute inset-0 size-full"
         >
           <circle
-            className="stroke-black/10 stroke-1 dark:stroke-white/10"
+            style={{ stroke: pathColor || "rgba(0,0,0,0.1)" }}
+            strokeWidth={0.5}
+            strokeDasharray="4 4"
             cx="50%"
             cy="50%"
             r={radius}

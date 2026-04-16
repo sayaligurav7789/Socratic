@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import { useTheme } from '@/components/theme-provider';
+import { useRef } from 'react';
+import { useEffect } from 'react';
 
 export interface Concept {
     id: string;
@@ -17,6 +19,8 @@ export interface RadarChartProps {
 export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
 
     useEffect(() => {
         if (!containerRef.current || !concepts || concepts.length === 0) return;
@@ -89,8 +93,8 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
             g.append("circle")
                 .attr("r", Math.max(0, ratio * maxRadius))
                 .attr("fill", "none")
-                .attr("stroke", "#1A1A2E")
-                .attr("stroke-opacity", 0.08)
+                .attr("stroke", isDark ? "#FFFFFF" : "#1A1A2E")
+                .attr("stroke-opacity", isDark ? 0.15 : 0.08)
                 .attr("stroke-width", 1)
                 .attr("stroke-dasharray", i === 4 ? "none" : "3,3");
         });
@@ -145,9 +149,10 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
             g.append("line")
                 .attr("x1", 0).attr("y1", 0)
                 .attr("x2", axis.x).attr("y2", axis.y)
-                .attr("stroke", "#1A1A2E")
-                .attr("stroke-opacity", 0.08)
-                .attr("stroke-width", 1);
+                .attr("stroke", isDark ? "#FFFFFF" : "#1A1A2E")
+                .attr("stroke-opacity", isDark ? 0.35 : 0.08)
+                .attr("stroke-width", isDark ? 1.5 : 1)
+                .style("filter", isDark ? "url(#glow)" : "none");
 
             g.append("text")
                 .attr("x", axis.labelX)
@@ -155,9 +160,9 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
                 .attr("dy", "-0.2em")
                 .attr("text-anchor", getLabelAnchor(axis.angle))
                 .attr("dominant-baseline", "middle")
-                .attr("fill", "#1A1A2E")
-                .attr("fill-opacity", 0.45) // faint initially
-                .attr("font-size", "13px")
+                .attr("fill", isDark ? "#FFFFFF" : "#1A1A2E")
+                .attr("fill-opacity", isDark ? 0.7 : 0.45) // faint initially
+                .attr("font-size", "14.5px")
                 .attr("font-family", "var(--font-ui, sans-serif)")
                 .attr("font-weight", 600)
                 .attr("class", `axis-label axis-label-${axis.id}`)
@@ -221,7 +226,7 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
             }
         });
 
-    }, [concepts]);
+    }, [concepts, isDark]);
 
     // Step 6 — The Update Function With Animation
     useEffect(() => {
@@ -279,7 +284,7 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
                 g.selectAll(`.axis-label-${axis.id}`)
                     .transition()
                     .duration(400)
-                    .attr("fill-opacity", 0.45);
+                    .attr("fill-opacity", isDark ? 0.7 : 0.45);
             }
 
             // Endpoints
@@ -305,7 +310,7 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
             }
         });
 
-    }, [depthScores, concepts]);
+    }, [depthScores, concepts, isDark]);
 
     return (
         <div 

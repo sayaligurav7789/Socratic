@@ -169,7 +169,7 @@ export default function ReportPage() {
         ctx.fillText(topicText.length > 30 ? topicText.slice(0, 30) + '…' : topicText, 48, 170)
 
         // Summary quote
-        ctx.fillStyle = '#4A4A68'
+        ctx.fillStyle = '#4a4a68ff'
         ctx.font = 'italic 15px serif'
         const summary = `"${report.opening_summary || ''}"`
         const words = summary.split(' ')
@@ -326,15 +326,7 @@ export default function ReportPage() {
 
     return (
         <div className="relative min-h-screen bg-[#F5F3EE] dark:bg-[#0D0D18] text-[#1A1A2E] dark:text-[#EEEEFF] selection:bg-[#00897B]/20">
-            <DotPattern
-                width={16}
-                height={16}
-                cx={1}
-                cy={1}
-                cr={1.5}
-                className="absolute inset-0 z-0 opacity-40 text-[#C4C3CE]"
-                glow={false}
-            />
+
 
             <div ref={reportRef} className="relative z-10 mx-auto max-w-4xl px-6 py-20 lg:py-32 overflow-hidden">
 
@@ -364,7 +356,7 @@ export default function ReportPage() {
                         transition={{ delay: 0.5, duration: 0.8 }}
                         className="mt-12 max-w-lg"
                     >
-                        <p className="text-[22px] font-serif italic text-[#1A1A2E]/90 leading-relaxed">
+                        <p className="text-[22px] font-serif italic text-[#1A1A2E]/90 dark:text-white leading-relaxed">
                             "{report.opening_summary}"
                         </p>
                     </motion.div>
@@ -469,23 +461,23 @@ export default function ReportPage() {
                                     whileInView={{ y: 0, opacity: 1 }}
                                     viewport={{ once: true }}
                                     transition={{ delay: idx * 0.1, duration: 0.5 }}
-                                    className="group rounded-[2rem] bg-white hover:bg-[#F7F6F2] border border-[#E2DFD8] p-6 transition-all"
+                                    className="group rounded-[2rem] bg-white dark:bg-[#151525] hover:bg-[#F7F6F2] dark:hover:bg-[#1A1A2E] border border-[#E2DFD8] dark:border-white/10 p-6 transition-all hover:shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_8px_30px_rgba(0,0,0,0.4),_inset_0_1px_0_rgba(255,255,255,0.05)]"
                                 >
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3">
-                                                <h4 className="text-[17px] font-bold text-[#1A1A2E]">{concept.name}</h4>
+                                                <h4 className="text-[17px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">{concept.name}</h4>
                                                 {score >= 4 ? (
-                                                    <div className="flex items-center gap-1 text-[#00897B] text-[11px] font-bold bg-[#E8F8F4] px-2 py-0.5 rounded-full">
+                                                    <div className="flex items-center gap-1 text-[#00897B] dark:text-[#4DB6AC] text-[11px] font-bold bg-[#E8F8F4] dark:bg-teal-500/10 px-2 py-0.5 rounded-full dark:border dark:border-teal-500/20 shadow-sm">
                                                         <Sparkles size={10} /> Mastery
                                                     </div>
                                                 ) : null}
                                             </div>
-                                            <p className="text-[14px] text-[#4A4A68] mt-1 lg:max-w-xl">{notes.what_was_covered}</p>
+                                            <p className="text-[14px] text-[#4A4A68] dark:text-white mt-1 lg:max-w-xl leading-relaxed">{notes.what_was_covered}</p>
                                             {notes.what_was_missed && (
-                                                <div className="mt-3 flex items-start gap-2 text-[13px] text-[#B45309] bg-[#FEF3C7]/50 p-3 rounded-xl border border-[#F59E0B]/20">
-                                                    <Zap size={14} className="mt-0.5 shrink-0" />
-                                                    <span><span className="font-bold">Growth Area:</span> {notes.what_was_missed}</span>
+                                                <div className="mt-3 flex items-start gap-2 text-[13px] text-[#B45309] dark:text-[#34D399] bg-[#FEF3C7]/50 dark:bg-[#8B5CF6]/15 p-3 rounded-xl border border-[#F59E0B]/20 dark:border-[#8B5CF6]/30 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                                                    <Zap size={14} className="mt-0.5 shrink-0 dark:text-[#10B981]" />
+                                                    <span><span className="font-bold text-[#B45309] dark:text-[#10B981]">Growth Area:</span> {notes.what_was_missed}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -494,7 +486,7 @@ export default function ReportPage() {
                                             {[1, 2, 3, 4, 5].map(step => (
                                                 <div
                                                     key={step}
-                                                    className={`h-2.5 w-6 rounded-full transition-colors ${step <= score ? "bg-[#00897B]" : "bg-[#E2DFD8]"}`}
+                                                    className={`h-2.5 w-6 rounded-full transition-colors ${step <= score ? "bg-[#00897B] dark:bg-[#00897B] dark:shadow-[0_0_8px_rgba(0,137,123,0.6)]" : "bg-[#E2DFD8] dark:bg-white/10"}`}
                                                 />
                                             ))}
                                         </div>

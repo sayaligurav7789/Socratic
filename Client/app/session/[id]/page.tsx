@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import { Copy, ThumbsUp, Volume2, Paperclip, Sparkles, Mic, Send, Loader2, X, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
 import { User } from "lucide-react"
@@ -48,8 +48,8 @@ export default function SessionPage() {
     const [speechError, setSpeechError] = useState("")
     const [ttsProvider, setTtsProvider] = useState<"gemini" | "puter">("gemini")
     const [isPuterReady, setIsPuterReady] = useState(false)
-    const { resolvedTheme } = useTheme()
-    const isDark = resolvedTheme === "dark"
+    const { theme } = useTheme()
+    const isDark = theme === "dark"
     const [miaVisualState, setMiaVisualState] = useState<MiaVisualState>("neutral")
     const [avatarVideoSrc, setAvatarVideoSrc] = useState("/normal.mp4")
     const [avatarOneShot, setAvatarOneShot] = useState(false)
@@ -122,23 +122,34 @@ export default function SessionPage() {
         const width = Math.max(100, Math.floor(containerRect.width));
         const height = Math.max(100, Math.floor(containerRect.height));
 
+        if (canvas.width === width && canvas.height === height) return;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        // Save existing drawing before resize
+        const existingData = canvas.width > 0 && canvas.height > 0 
+            ? ctx.getImageData(0, 0, canvas.width, canvas.height) 
+            : null;
+
         // Set canvas dimensions to match container exactly
         canvas.width = width;
         canvas.height = height;
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
 
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
         // Reset transform and set up drawing context
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         
-        // Fill with paper-like background
-        ctx.fillStyle = "#F7F6F2";
-        ctx.fillRect(0, 0, width, height);
+        // Make canvas transparent instead of filling it, so background dots show
+        // Do not use fillRect here.
+
+        // Restore drawing over the new background
+        if (existingData) {
+            ctx.putImageData(existingData, 0, 0);
+        }
         
         canvasCtxRef.current = ctx;
     };
@@ -161,17 +172,7 @@ export default function SessionPage() {
         return () => {
             resizeObserver.disconnect();
         };
-    }, []);
-
-    // Re-initialise canvas when panel opens
-    useEffect(() => {
-        if (!isCanvasCollapsed) {
-            // Small delay to ensure DOM is ready
-            setTimeout(() => {
-                setupCanvas();
-            }, 50);
-        }
-    }, [isCanvasCollapsed]);
+    }, [isCanvasCollapsed, isDark]);
 
     const getPointerPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -265,7 +266,8 @@ export default function SessionPage() {
 
         isDrawingRef.current = true;
         lastPointRef.current = point;
-        ctx.strokeStyle = drawTool === "pen" ? brushColor : "#F7F6F2";
+        ctx.globalCompositeOperation = drawTool === "eraser" ? "destination-out" : "source-over";
+        ctx.strokeStyle = drawTool === "eraser" ? "rgba(0,0,0,1)" : brushColor;
         ctx.lineWidth = brushSize;
         ctx.beginPath();
         ctx.moveTo(point.x, point.y);
@@ -294,7 +296,8 @@ export default function SessionPage() {
             return;
         }
 
-        ctx.strokeStyle = drawTool === "pen" ? brushColor : "#F7F6F2";
+        ctx.globalCompositeOperation = drawTool === "eraser" ? "destination-out" : "source-over";
+        ctx.strokeStyle = drawTool === "eraser" ? "rgba(0,0,0,1)" : brushColor;
         ctx.lineWidth = brushSize;
         ctx.beginPath();
         ctx.moveTo(prev.x, prev.y);
@@ -334,8 +337,7 @@ export default function SessionPage() {
         const canvas = canvasRef.current;
         const ctx = canvasCtxRef.current;
         if (!canvas || !ctx) return;
-        ctx.fillStyle = "#F7F6F2";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     };
 
     useEffect(() => {
@@ -937,10 +939,10 @@ export default function SessionPage() {
                         backdropFilter: "blur(40px) saturate(1.6)",
                         WebkitBackdropFilter: "blur(40px) saturate(1.6)",
                         border: isDark
-                            ? "1px solid rgba(255,255,255,0.06)"
+                            ? "1px solid rgba(255,255,255,0.12)"
                             : "1px solid rgba(255,255,255,0.7)",
                         boxShadow: isDark
-                            ? "0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"
+                            ? "0 8px 40px rgba(0,0,0,0.35), 0 0 30px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
                             : "0 8px 40px rgba(26,26,46,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
                     }}
                 >
@@ -981,7 +983,7 @@ export default function SessionPage() {
                                 {!isSessionEnded && (
                                     <button
                                         onClick={() => setShowEndModal(true)}
-                                        className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-[#7A7A98] dark:text-[#9898BB] bg-white/60 dark:bg-white/[0.05] border border-[#E2DFD8] dark:border-white/10 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-200 dark:hover:border-red-500/20 hover:text-red-500 transition-all duration-200 shadow-sm"
+                                        className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-[#7A7A98] dark:text-[#9898BB] bg-white/60 dark:bg-white/[0.05] border border-red-400/20 dark:border-red-500/25 shadow-[0_0_10px_rgba(248,113,113,0.12)] dark:shadow-[0_0_14px_rgba(239,68,68,0.18)] hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-400/40 dark:hover:border-red-500/40 hover:text-red-500 transition-all duration-200"
                                     >
                                         End Session
                                     </button>
@@ -1230,10 +1232,10 @@ export default function SessionPage() {
                         backdropFilter: "blur(30px) saturate(1.4)",
                         WebkitBackdropFilter: "blur(30px) saturate(1.4)",
                         border: isDark
-                            ? "1px solid rgba(255,255,255,0.06)"
+                            ? "1px solid rgba(255,255,255,0.12)"
                             : "1px solid rgba(255,255,255,0.7)",
                         boxShadow: isDark
-                            ? "0 8px 32px rgba(0,0,0,0.3)"
+                            ? "0 8px 32px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
                             : "0 8px 32px rgba(26,26,46,0.05)",
                     }}
                 >
@@ -1333,8 +1335,10 @@ export default function SessionPage() {
                         className="flex-[0.4] rounded-[2rem] p-0 flex flex-col items-center justify-center relative overflow-hidden"
                         style={{
                             background: "linear-gradient(145deg, #12122A 0%, #1A1A2E 50%, #151530 100%)",
-                            boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.05)",
+                            border: isDark ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(255,255,255,0.05)",
+                            boxShadow: isDark 
+                                ? "0 8px 32px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
+                                : "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)",
                         }}
                     >
                         <video
@@ -1364,10 +1368,10 @@ export default function SessionPage() {
                             backdropFilter: "blur(30px) saturate(1.4)",
                             WebkitBackdropFilter: "blur(30px) saturate(1.4)",
                             border: isDark
-                                ? "1px solid rgba(255,255,255,0.06)"
+                                ? "1px solid rgba(255,255,255,0.12)"
                                 : "1px solid rgba(255,255,255,0.7)",
                             boxShadow: isDark
-                                ? "0 8px 32px rgba(0,0,0,0.3)"
+                                ? "0 8px 32px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
                                 : "0 8px 32px rgba(26,26,46,0.05)",
                         }}
                     >

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import { motion } from "motion/react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -9,8 +9,8 @@ import { InteractiveGridPattern } from "@/components/ui/interactive-grid-pattern
 
 export default function ChoosePage() {
     const router = useRouter()
-    const { resolvedTheme } = useTheme()
-    const isDark = resolvedTheme === "dark"
+    const { theme } = useTheme()
+    const isDark = theme === "dark"
 
     const handleSelect = (persona: "mia" | "leo") => {
         router.push(`/onboard?persona=${persona}`)
@@ -56,7 +56,7 @@ export default function ChoosePage() {
                     className="text-center mb-4"
                     style={{
                         fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
-                        color: isDark ? "#E8E8FF" : "#1A1A2E",
+                        color: isDark ? "#FFFFFF" : "#1A1A2E",
                         fontSize: "clamp(1.3rem, 3vw, 1.8rem)",
                         fontWeight: 600,
                         lineHeight: 1.3,
@@ -155,7 +155,7 @@ export default function ChoosePage() {
                             className="text-xl font-semibold mb-1 relative z-10"
                             style={{
                                 fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
-                                color: isDark ? "#E8E8FF" : "#1A1A2E",
+                                color: isDark ? "#FFFFFF" : "#1A1A2E",
                                 fontWeight: 600
                             }}
                         >
@@ -276,7 +276,7 @@ export default function ChoosePage() {
                             className="text-xl font-semibold mb-1 relative z-10"
                             style={{
                                 fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
-                                color: isDark ? "#E8E8FF" : "#1A1A2E",
+                                color: isDark ? "#FFFFFF" : "#1A1A2E",
                                 fontWeight: 600
                             }}
                         >

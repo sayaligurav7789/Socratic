@@ -8,7 +8,7 @@ import { Brain, BookOpen, Sparkles, Lightbulb, Pencil, Loader2, FileText, X } fr
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import { BACKEND_URL } from "@/lib/config"
 
 const Onboard = () => {
@@ -22,8 +22,8 @@ const Onboard = () => {
         "Preparing your session..."
     ]
     const { user } = useUser()
-    const { resolvedTheme } = useTheme()
-    const isDark = resolvedTheme === "dark"
+    const { theme } = useTheme()
+    const isDark = theme === "dark"
     const [topic, setTopic] = useState("")
     const [isShaking, setIsShaking] = useState(false)
     const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
@@ -172,7 +172,7 @@ const Onboard = () => {
                                                 fontSize: "19px",
                                                 fontWeight: 300,
                                                 fontStyle: "italic",
-                                                color: isDark ? "#E8E8FF" : "#1A1A2E",
+                                                color: isDark ? "#FFFFFF" : "#1A1A2E",
                                             }}
                                         >
                                             {msg}
@@ -187,7 +187,7 @@ const Onboard = () => {
                                         fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
                                         fontSize: "20px",
                                         fontWeight: 600,
-                                        color: isDark ? "#E8E8FF" : "#1A1A2E",
+                                        color: isDark ? "#FFFFFF" : "#1A1A2E",
                                         lineHeight: 1.4,
                                     }}
                                 >
@@ -214,7 +214,7 @@ const Onboard = () => {
                                             fontStyle: topic ? "normal" : "italic",
                                             background: isDark ? "rgba(255,255,255,0.06)" : "#F0EEE9",
                                             border: isShaking || status === "error" ? "1px solid #EF4444" : isDark ? "1px solid rgba(255,255,255,0.12)" : "1px solid #E2DFD8",
-                                            color: isDark ? "#E8E8FF" : "#1A1A2E",
+                                            color: isDark ? "#FFFFFF" : "#1A1A2E",
                                             lineHeight: 1.6,
                                         }}
                                         onFocus={e => {
@@ -391,7 +391,7 @@ const Onboard = () => {
                                         fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
                                         fontSize: "12px",
                                         fontWeight: 500,
-                                        color: "#9898AA",
+                                        color: isDark ? "#E8E8FF" : "#9898AA",
                                         letterSpacing: "0.08em",
                                         textTransform: "uppercase",
                                     }}
@@ -405,13 +405,14 @@ const Onboard = () => {
                                 duration={18}
                                 iconSize={34}
                                 path
+                                pathColor={isDark ? "#FFFFFF" : "rgba(0,0,0,0.1)"}
                             >
                                 <div
                                     className="flex items-center justify-center rounded-full shadow-sm"
                                     style={{
                                         width: 38,
                                         height: 38,
-                                        background: "rgba(0,137,123,0.10)",
+                                        background: isDark ? "rgba(0,137,123,0.25)" : "rgba(0,137,123,0.10)",
                                         color: "#00897B",
                                     }}
                                 >
@@ -422,7 +423,7 @@ const Onboard = () => {
                                     style={{
                                         width: 38,
                                         height: 38,
-                                        background: "rgba(0,137,123,0.10)",
+                                        background: isDark ? "rgba(0,137,123,0.25)" : "rgba(0,137,123,0.10)",
                                         color: "#00897B",
                                     }}
                                 >
@@ -433,7 +434,7 @@ const Onboard = () => {
                                     style={{
                                         width: 38,
                                         height: 38,
-                                        background: "rgba(0,137,123,0.10)",
+                                        background: isDark ? "rgba(0,137,123,0.25)" : "rgba(0,137,123,0.10)",
                                         color: "#00897B",
                                     }}
                                 >
@@ -447,13 +448,14 @@ const Onboard = () => {
                                 reverse
                                 iconSize={28}
                                 path
+                                pathColor={isDark ? "#FFFFFF" : "rgba(0,0,0,0.1)"}
                             >
                                 <div
                                     className="flex items-center justify-center rounded-full shadow-sm"
                                     style={{
                                         width: 30,
                                         height: 30,
-                                        background: "rgba(88,73,232,0.10)",
+                                        background: isDark ? "rgba(88,73,232,0.25)" : "rgba(88,73,232,0.10)",
                                         color: "#5849E8",
                                     }}
                                 >
@@ -464,7 +466,7 @@ const Onboard = () => {
                                     style={{
                                         width: 30,
                                         height: 30,
-                                        background: "rgba(88,73,232,0.10)",
+                                        background: isDark ? "rgba(88,73,232,0.25)" : "rgba(88,73,232,0.10)",
                                         color: "#5849E8",
                                     }}
                                 >
