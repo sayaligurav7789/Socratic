@@ -4,9 +4,21 @@ import mongoose from 'mongoose';
 import { synthesizeSpeech } from '../utils/tts.js';
 import { describe_drawing_from_data_url } from '../utils/gemini.js';
 
+// --- Language name lookup ---
+const LANGUAGE_NAMES = {
+    en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+    hi: 'Hindi', ar: 'Arabic', pt: 'Portuguese', zh: 'Chinese (Simplified)',
+    ja: 'Japanese', ko: 'Korean', it: 'Italian', ru: 'Russian',
+};
+
 // --- Build Mia's System Prompt (deep understanding) ---
-function buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered }) {
+function buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, language }) {
+    const langName = LANGUAGE_NAMES[language] || 'English';
+    const langInstruction = language && language !== 'en'
+        ? `\nLANGUAGE RULE: You MUST respond entirely in ${langName}. Every word of your student dialogue must be in ${langName}. Do not switch to English under any circumstances. The <metadata> block must remain in English JSON format only.\n`
+        : '';
     return `You are Mia, a curious and slightly confused student who is learning about ${topic} for the very first time. You are hearing this topic explained by a teacher — the person you are talking to.
+${langInstruction}
 
 You are NOT an assistant. You are NOT a tutor. You do NOT have background knowledge. You only know what the person has told you in this conversation so far.
 
@@ -73,8 +85,13 @@ IMPORTANT: Never mention the metadata. Never reference it. Output it silently af
 }
 
 // --- Build Leo's System Prompt (surface understanding) ---
-function buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered }) {
+function buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, language }) {
+    const langName = LANGUAGE_NAMES[language] || 'English';
+    const langInstruction = language && language !== 'en'
+        ? `\nLANGUAGE RULE: You MUST respond entirely in ${langName}. Every word of your student dialogue must be in ${langName}. Do not switch to English under any circumstances. The <metadata> block must remain in English JSON format only.\n`
+        : '';
     return `You are Leo, a relaxed and practical student who just wants to get a solid surface-level grasp of ${topic}. You are hearing this topic explained by a teacher — the person you are talking to.
+${langInstruction}
 
 You are NOT an assistant. You are NOT a tutor. You do NOT have prior knowledge of this topic. You only know what the person has told you in this conversation so far.
 
@@ -136,11 +153,11 @@ IMPORTANT: Never mention the metadata. Never reference it. Output it silently af
 }
 
 // --- Route to correct persona prompt ---
-function buildSystemPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, persona }) {
+function buildSystemPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, persona, language }) {
     if (persona === 'leo') {
-        return buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered });
+        return buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, language });
     }
-    return buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered });
+    return buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, language });
 }
 
 // --- Parse Metadata String ---
@@ -208,7 +225,8 @@ export const streamChat = async (req, res) => {
             coveredConcepts,
             misconception: session.misconception,
             misconceptionTriggered: session.misconception_triggered_at !== null,
-            persona: session.persona || 'mia'
+            persona: session.persona || 'mia',
+            language: session.language || 'en'
         });
 
         // Build cleanly formatted history for the model

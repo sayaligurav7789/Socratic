@@ -94,6 +94,10 @@ const sessionSchema = new mongoose.Schema(
             enum: ['mia', 'leo'],
             default: 'mia',
         },
+        language: {
+            type: String,
+            default: 'en',
+        },
     },
     {
         timestamps: true,

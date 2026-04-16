@@ -81,7 +81,7 @@ export const createSession = async (req, res) => {
 
 export const initSession = async (req, res) => {
     try {
-        const { topic, user_id, source_url, persona } = req.body;
+        const { topic, user_id, source_url, persona, language } = req.body;
         const file = req.file;
 
         if (!topic || !user_id) {
@@ -235,7 +235,17 @@ ${source_text ? `Text: ${source_text}` : ''}`;
                 }
             };
         } else {
-            const geminiSystemPrompt = `You are a curriculum designer. When given a topic, return a JSON object with exactly 5 to 8 sub-concepts a person must understand to demonstrate genuine mastery of that topic. Return ONLY valid JSON, no explanation, no markdown fences.`;
+            const LANGUAGE_NAMES = {
+                en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+                hi: 'Hindi', ar: 'Arabic', pt: 'Portuguese', zh: 'Chinese (Simplified)',
+                ja: 'Japanese', ko: 'Korean', it: 'Italian', ru: 'Russian',
+            };
+            const langName = LANGUAGE_NAMES[language] || 'English';
+            const langNote = language && language !== 'en'
+                ? ` All "name" and "description" fields MUST be written in ${langName}. The "wrong_belief" and "correct_belief" fields MUST also be in ${langName}.`
+                : '';
+
+            const geminiSystemPrompt = `You are a curriculum designer. When given a topic, return a JSON object with exactly 5 to 8 sub-concepts a person must understand to demonstrate genuine mastery of that topic. Return ONLY valid JSON, no explanation, no markdown fences.${langNote}`;
 
             const geminiUserPrompt = `Topic: ${topic}\n${source_text ? `Additional context from user's notes: ${source_text}` : ''}
     
@@ -279,6 +289,7 @@ Return this exact shape:
             messages: [],
             blindSpots: [],
             persona: persona === 'leo' ? 'leo' : 'mia',
+            language: language || 'en',
         });
 
         user.sessions.push(newSession._id);
