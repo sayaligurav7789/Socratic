@@ -13,8 +13,8 @@ import { BACKEND_URL } from "@/lib/config"
 
 const Onboard = () => {
     const router = useRouter()
-    const searchParams = useSearchParams()
-    const persona = (searchParams.get("persona") === "leo" ? "leo" : "mia") as "mia" | "leo"
+    const searchParams = typeof window !== "undefined" ? useSearchParams() : null
+    const persona = (searchParams?.get("persona") === "leo" ? "leo" : "mia") as "mia" | "leo"
     const personaName = persona === "leo" ? "Leo" : "Mia"
     const LOADING_MESSAGES = [
         "Understanding your topic...",
