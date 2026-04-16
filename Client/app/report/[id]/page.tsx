@@ -356,7 +356,8 @@ export default function ReportPage() {
                         transition={{ delay: 0.5, duration: 0.8 }}
                         className="mt-12 max-w-lg"
                     >
-                        <p className="text-[22px] font-serif italic text-[#1A1A2E]/90 dark:text-white leading-relaxed">
+                        {/* Light: Solid Black | Dark: Solid White */}
+                        <p className="text-[22px] font-serif italic text-black dark:text-white leading-relaxed">
                             "{report.opening_summary}"
                         </p>
                     </motion.div>
@@ -368,8 +369,11 @@ export default function ReportPage() {
                         transition={{ delay: 1.2, duration: 1 }}
                         className="mt-10 flex flex-col items-center gap-2"
                     >
-                        <span className="text-[11px] font-medium text-[#9898AA] uppercase tracking-widest">Scroll to explore</span>
-                        <ChevronDown className="text-[#9898AA] animate-bounce" size={16} />
+                        {/* Light: Deep Navy-Gray | Dark: Pure White */}
+                        <span className="text-[11px] font-bold text-[#1A1A2E] dark:text-white uppercase tracking-widest">
+                            Scroll to explore
+                        </span>
+                        <ChevronDown className="text-[#1A1A2E] dark:text-white animate-bounce" size={16} />
                     </motion.div>
                 </section>
 
@@ -473,14 +477,26 @@ export default function ReportPage() {
                                                     </div>
                                                 ) : null}
                                             </div>
-                                            <p className="text-[14px] text-[#4A4A68] dark:text-white mt-1 lg:max-w-xl leading-relaxed">{notes.what_was_covered}</p>
+                                            <p className="text-[14px] text-[#4A4A68] dark:text-[#E8E8FF] mt-1 lg:max-w-xl leading-relaxed">
+                                            {notes.what_was_covered}
+                                            </p>
+
                                             {notes.what_was_missed && (
-                                                <div className="mt-3 flex items-start gap-2 text-[13px] text-[#B45309] dark:text-[#34D399] bg-[#FEF3C7]/50 dark:bg-[#8B5CF6]/15 p-3 rounded-xl border border-[#F59E0B]/20 dark:border-[#8B5CF6]/30 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                                                    <Zap size={14} className="mt-0.5 shrink-0 dark:text-[#10B981]" />
-                                                    <span><span className="font-bold text-[#B45309] dark:text-[#10B981]">Growth Area:</span> {notes.what_was_missed}</span>
+                                                <div className="mt-4 flex items-start gap-3 text-[13px] 
+                                                    /* Light Mode: Solid White with a colored shadow offset */
+                                                    bg-white text-[#B45309] shadow-[4px_4px_0px_0px_rgba(245,158,11,0.2)] border border-[#F59E0B]/20 
+                                                    /* Dark Mode: Deep Glass with a teal shadow offset */
+                                                    dark:bg-[#1A1A2E] dark:text-[#34D399] dark:shadow-[4px_4px_0px_0px_rgba(0,137,123,0.3)] dark:border-white/10 
+                                                    p-4 rounded-2xl transition-all hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(245,158,11,0.3)]"
+                                                >
+                                                    <Zap size={16} className="mt-0.5 shrink-0 text-[#F59E0B] dark:text-[#00897B]" />
+                                                    <span>
+                                                        <span className="font-bold uppercase tracking-wider text-[11px] mr-1">Growth Area:</span> 
+                                                        {notes.what_was_missed}
+                                                    </span>
                                                 </div>
                                             )}
-                                        </div>
+                                            </div>
 
                                         <div className="flex items-center gap-2">
                                             {[1, 2, 3, 4, 5].map(step => (
