@@ -71,7 +71,7 @@ const Onboard = () => {
     const handleStart = async () => {
         if (!topic.trim() || !user) {
             setIsShaking(true)
-            setTimeout(() => setIsShaking(false), 500) // Reset shake after animation
+            setTimeout(() => setIsShaking(false), 500)
             setStatus("idle")
             return
         }
@@ -85,7 +85,6 @@ const Onboard = () => {
             formData.append("user_id", user.id)
             formData.append("persona", persona)
             
-            // Pass primary user info to allow backend lazy-creation if webhook was missed
             if (user.primaryEmailAddress) formData.append("email", user.primaryEmailAddress.emailAddress)
             if (user.firstName) formData.append("firstName", user.firstName)
             if (user.lastName) formData.append("lastName", user.lastName)
@@ -110,7 +109,6 @@ const Onboard = () => {
                 throw new Error(data.message || "Failed to initialize session")
             }
             
-            // Navigate to the precise session page
             router.push(`/session/${data.data.sessionId}`) 
         } catch (error) {
             console.error("Initialization error:", error)
@@ -130,49 +128,15 @@ const Onboard = () => {
                     animation: shake 0.2s ease-in-out 0s 2;
                 }
             `}</style>
-            {/* Hidden SVG noise filter definition */}
-            <svg className="absolute h-0 w-0" aria-hidden="true">
-                <defs>
-                    {/* Colourful grain: biased toward brand teal (#00897B) + violet (#5849E8) */}
-                    <filter id="grain" x="0%" y="0%" width="100%" height="100%"
-                        colorInterpolationFilters="sRGB">
-                        <feTurbulence
-                            type="fractalNoise"
-                            baseFrequency="0.68"
-                            numOctaves="4"
-                            seed="5"
-                            stitchTiles="stitch"
-                            result="noise"
-                        />
-                        {/*
-                          Color matrix maps raw turbulence toward brand palette:
-                          R col → violet tones  (88/255 ≈ 0.35 base)
-                          G col → teal tones    (137/255 ≈ 0.54 base)
-                          B col → shared high   (violet 232 + teal 123 → bias 0.70)
-                          Alpha → grain threshold for density
-                        */}
-                        <feColorMatrix
-                            type="matrix"
-                            values="0.4 0   0   0  0.22
-                                    0   0.7 0   0  0.32
-                                    0   0   1.3 0  0.38
-                                    0   0   0  15 -6"
-                            in="noise"
-                            result="coloredNoise"
-                        />
-                        <feBlend in="SourceGraphic" in2="coloredNoise" mode="screen" />
-                    </filter>
-                </defs>
-            </svg>
 
-            {/* Full-page interactive grid background */}
+            {/* Full-page interactive grid background - STRAIGHT (no skew) */}
             <InteractiveGridPattern
                 width={50}
                 height={50}
                 squares={[40, 30]}
                 className={cn(
                     "mask-[radial-gradient(900px_circle_at_center,white,transparent)]",
-                    "inset-x-0 inset-y-[-30%] h-[200%] skew-y-12"
+                    "inset-x-0 inset-y-[-30%] h-[200%]"
                 )}
                 squaresClassName={isDark ? "hover:fill-white/5 stroke-white/10" : "hover:fill-black/5 stroke-black/10"}
             />
@@ -188,22 +152,9 @@ const Onboard = () => {
                         WebkitBackdropFilter: "blur(24px) saturate(180%)",
                     }}
                 >
-                    {/* Colourful grain overlay on card */}
-                    <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 z-10 rounded-3xl"
-                        style={{
-                            filter: "url(#grain)",
-                            opacity: 0.22,
-                            background: "rgba(255,255,255,0.0)",
-                            mixBlendMode: "screen",
-                        }}
-                    />
-
                     {/* Left panel — input & actions / loading state */}
                     <div className="relative z-20 flex flex-1 flex-col gap-5 p-8" style={{ fontFamily: "var(--font-ui, 'DM Sans', sans-serif)" }}>
                         
-                        {/* ── ALIGN ITEMS CENTER FOR LOADING STATE ── */}
                         {status === "loading" ? (
                             <div className="flex h-full flex-col items-center justify-center gap-6 animate-in fade-in duration-300">
                                 <Loader2 className="animate-spin" size={32} style={{ color: "#00897B" }} />
@@ -230,7 +181,6 @@ const Onboard = () => {
                             </div>
                         ) : (
                             <div className="flex h-full flex-col gap-5 animate-in fade-in duration-300">
-                                {/* Heading */}
                                 <h2
                                     style={{
                                         fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
@@ -243,7 +193,6 @@ const Onboard = () => {
                                     Enter your topic
                                 </h2>
 
-                                {/* Text input area with error message */}
                                 <div className="flex flex-col gap-2">
                                     <textarea
                                         rows={5}
@@ -285,7 +234,6 @@ const Onboard = () => {
                                     )}
                                 </div>
 
-                                {/* Add source material — centered with 3D Flip */}
                                 <div className="mx-auto h-[44px] w-[280px] relative perspective-[1000px]">
                                     <div 
                                         className={cn(
@@ -293,7 +241,6 @@ const Onboard = () => {
                                             isAttachmentFlipped ? "transform-[rotateX(180deg)]" : ""
                                         )}
                                     >
-                                        {/* FRONT FACE (Initial Button or Selected File) */}
                                         <div className="absolute inset-0 backface-hidden">
                                             <button
                                                 onClick={() => setIsAttachmentFlipped(true)}
@@ -334,7 +281,6 @@ const Onboard = () => {
                                             </button>
                                         </div>
 
-                                        {/* BACK FACE (Options: PDF, TXT, Cross) */}
                                         <div className="absolute inset-0 backface-hidden transform-[rotateX(180deg)] flex items-center gap-2 justify-between">
                                             <button 
                                                 onClick={() => pdfInputRef.current?.click()}
@@ -373,7 +319,6 @@ const Onboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* Hidden File Inputs */}
                                     <input 
                                         type="file" 
                                         accept=".pdf" 
@@ -404,14 +349,12 @@ const Onboard = () => {
                                     />
                                 </div>
 
-                                {/* API Error Message */}
                                 {status === "error" && (
                                     <span className="mx-auto text-sm animate-in fade-in" style={{ color: "#EF4444" }}>
                                         Something went wrong — want to try again?
                                     </span>
                                 )}
 
-                                {/* Start Teaching CTA — #00897B → #00695C per color guide */}
                                 <button
                                     onClick={handleStart}
                                     className="mt-auto flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-white shadow-lg transition active:scale-[0.98]"
@@ -437,14 +380,10 @@ const Onboard = () => {
                         )}
                     </div>
 
-                    {/* Divider */}
                     <div className="w-px self-stretch" style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.50)" }} />
 
-                    {/* Right panel — orbiting circles */}
                     <div className="relative z-20 flex flex-1 items-center justify-center p-6">
                         <div className="relative flex h-[280px] w-[280px] items-center justify-center">
-
-                            {/* Center label */}
                             <div className="flex flex-col items-center gap-1 text-center">
                                 <span
                                     style={{
@@ -460,7 +399,6 @@ const Onboard = () => {
                                 </span>
                             </div>
 
-                            {/* Outer orbit — teal, slower */}
                             <OrbitingCircles
                                 radius={120}
                                 duration={18}
@@ -502,7 +440,6 @@ const Onboard = () => {
                                 </div>
                             </OrbitingCircles>
 
-                            {/* Inner orbit — violet, reversed, faster */}
                             <OrbitingCircles
                                 radius={58}
                                 duration={12}
