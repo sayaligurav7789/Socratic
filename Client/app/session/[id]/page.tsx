@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
+import { User } from "lucide-react"
 
 type BrowserSpeechRecognition = {
     continuous: boolean;
@@ -26,6 +27,12 @@ type MiaVisualState = "neutral" | "curious" | "confused" | "satisfied" | "caught
 type DrawTool = "pen" | "eraser" | "rectangle" | "circle" | "line" | "triangle" | "text";
 
 export default function SessionPage() {
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+      setMounted(true)
+    }, [])
+    
     const params = useParams()
     const { id } = params
 
@@ -70,7 +77,7 @@ export default function SessionPage() {
     const [shapeText, setShapeText] = useState("")
     const [isCanvasCollapsed, setIsCanvasCollapsed] = useState(true)
     const router = useRouter()
-
+    
     const handleComposerPaste = async () => {
         if (!id) return;
 
@@ -104,39 +111,80 @@ export default function SessionPage() {
         }
     };
 
+    // IMPROVED: Canvas setup that perfectly fills the container
     const setupCanvas = () => {
         const canvas = canvasRef.current;
         const container = canvasContainerRef.current;
         if (!canvas || !container) return;
 
-        const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(200, Math.floor(container.clientWidth));
-        const height = Math.max(220, Math.floor(container.clientHeight));
+        // Get precise container dimensions
+        const containerRect = container.getBoundingClientRect();
+        const width = Math.max(100, Math.floor(containerRect.width));
+        const height = Math.max(100, Math.floor(containerRect.height));
 
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
+        // Set canvas dimensions to match container exactly
+        canvas.width = width;
+        canvas.height = height;
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
+        // Reset transform and set up drawing context
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr, dpr);
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
+        
+        // Fill with paper-like background
         ctx.fillStyle = "#F7F6F2";
         ctx.fillRect(0, 0, width, height);
+        
         canvasCtxRef.current = ctx;
     };
+
+    // Use ResizeObserver to handle container size changes dynamically
+    useEffect(() => {
+        const container = canvasContainerRef.current;
+        if (!container) return;
+
+        // Initial setup
+        setupCanvas();
+
+        // Watch for container resize
+        const resizeObserver = new ResizeObserver(() => {
+            setupCanvas();
+        });
+        
+        resizeObserver.observe(container);
+        
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, []);
+
+    // Re-initialise canvas when panel opens
+    useEffect(() => {
+        if (!isCanvasCollapsed) {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                setupCanvas();
+            }, 50);
+        }
+    }, [isCanvasCollapsed]);
 
     const getPointerPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         if (!canvas) return null;
         const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        if (!mounted) return null
+        
         return {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top
+            x: (event.clientX - rect.left) * scaleX,
+            y: (event.clientY - rect.top) * scaleY
         };
     };
 
@@ -149,42 +197,32 @@ export default function SessionPage() {
         const width = end.x - start.x;
         const height = end.y - start.y;
 
+        ctx.save();
         ctx.strokeStyle = brushColor;
         ctx.fillStyle = brushColor;
         ctx.lineWidth = brushSize;
 
         if (tool === "rectangle") {
             ctx.strokeRect(start.x, start.y, width, height);
-            return;
-        }
-
-        if (tool === "line") {
+        } else if (tool === "line") {
             ctx.beginPath();
             ctx.moveTo(start.x, start.y);
             ctx.lineTo(end.x, end.y);
             ctx.stroke();
-            return;
-        }
-
-        if (tool === "circle") {
+        } else if (tool === "circle") {
             const centerX = start.x + width / 2;
             const centerY = start.y + height / 2;
             const radiusX = Math.abs(width / 2);
             const radiusY = Math.abs(height / 2);
-
             ctx.beginPath();
             ctx.ellipse(centerX, centerY, Math.max(radiusX, 1), Math.max(radiusY, 1), 0, 0, Math.PI * 2);
             ctx.stroke();
-            return;
-        }
-
-        if (tool === "triangle") {
+        } else if (tool === "triangle") {
             const leftX = Math.min(start.x, end.x);
             const rightX = Math.max(start.x, end.x);
             const topY = Math.min(start.y, end.y);
             const bottomY = Math.max(start.y, end.y);
             const midX = (leftX + rightX) / 2;
-
             ctx.beginPath();
             ctx.moveTo(midX, topY);
             ctx.lineTo(leftX, bottomY);
@@ -192,9 +230,11 @@ export default function SessionPage() {
             ctx.closePath();
             ctx.stroke();
         }
+        ctx.restore();
     };
 
     const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
+        event.preventDefault();
         const ctx = canvasCtxRef.current;
         const canvas = canvasRef.current;
         const point = getPointerPoint(event);
@@ -232,6 +272,7 @@ export default function SessionPage() {
     };
 
     const drawLine = (event: React.PointerEvent<HTMLCanvasElement>) => {
+        event.preventDefault();
         const ctx = canvasCtxRef.current;
         const canvas = canvasRef.current;
         const point = getPointerPoint(event);
@@ -293,29 +334,9 @@ export default function SessionPage() {
         const canvas = canvasRef.current;
         const ctx = canvasCtxRef.current;
         if (!canvas || !ctx) return;
-        const rect = canvas.getBoundingClientRect();
         ctx.fillStyle = "#F7F6F2";
-        ctx.fillRect(0, 0, rect.width, rect.height);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
-
-    useEffect(() => {
-        setupCanvas();
-        const onResize = () => setupCanvas();
-        window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
-    }, []);
-
-    // Re-initialise the canvas whenever the drawing panel is opened,
-    // because the <canvas> element is conditionally rendered and doesn't
-    // exist in the DOM while the panel is collapsed.
-    useEffect(() => {
-        if (!isCanvasCollapsed) {
-            // Give React one frame to mount the canvas element before setup
-            requestAnimationFrame(() => {
-                setupCanvas();
-            });
-        }
-    }, [isCanvasCollapsed]);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -820,15 +841,12 @@ export default function SessionPage() {
         }
     };
 
-    // Developer function to artificially animate the depth scores
-    // so judges/users can see the smooth polygon and glowing dot transitions
     const simulateAnimation = () => {
         if (!sessionData || !sessionData.conceptTree) return;
 
         let currentScores = { ...(sessionData.depthScores || {}) };
         const concepts = sessionData.conceptTree.map((c: any) => c.id);
 
-        // Ensure starting at 0
         concepts.forEach((conceptId: string) => {
             currentScores[conceptId] = 0;
         });
@@ -836,30 +854,65 @@ export default function SessionPage() {
         setSessionData({ ...sessionData, depthScores: currentScores });
 
         const interval = setInterval(() => {
-            // Pick a random concept that isn't mastered yet
             const upgradable = concepts.filter((cid: string) => currentScores[cid] < 5);
             if (upgradable.length === 0) {
                 clearInterval(interval);
                 return;
             }
 
-            // Upgrade one
             const idToUpgrade = upgradable[Math.floor(Math.random() * upgradable.length)];
             currentScores[idToUpgrade] += 1;
 
-            // Periodically upgrade a second one for more dynamic visual movement
             if (Math.random() > 0.5 && upgradable.length > 1) {
                 const idToUpgrade2 = upgradable[Math.floor(Math.random() * upgradable.length)];
                 currentScores[idToUpgrade2] = Math.min(5, currentScores[idToUpgrade2] + 1);
             }
 
-            // Push State -> Triggers D3 UseEffect Transition
             setSessionData({ ...sessionData, depthScores: { ...currentScores } });
-        }, 1200); // Trigger a transition every 1.2s
+        }, 1200);
+    };
+
+    /* ─── active tool helper ─── */
+    const toolBtn = (tool: DrawTool, label: string) => {
+        const isActive = drawTool === tool;
+        const isEraser = tool === "eraser";
+        const isText = tool === "text";
+        return (
+            <button
+                type="button"
+                onClick={() => setDrawTool(tool)}
+                className={`px-3.5 py-[7px] rounded-xl text-[12px] font-semibold border transition-all duration-200 ${
+                    isActive
+                        ? isEraser
+                            ? "bg-amber-50 text-amber-700 border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]"
+                            : isText
+                                ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-[0_0_0_1px_rgba(88,73,232,0.15)]"
+                                : "bg-teal-50 text-teal-700 border-teal-300 shadow-[0_0_0_1px_rgba(0,137,123,0.15)]"
+                        : "bg-white/80 dark:bg-white/[0.04] text-[#5A5A78] dark:text-[#9898BB] border-[#E8E5DE] dark:border-white/10 hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20"
+                }`}
+            >
+                {label}
+            </button>
+        );
     };
 
     return (
-        <div className="relative min-h-screen w-full overflow-hidden bg-[#F5F3EE] dark:bg-[#0D0D18] pt-10" style={{ fontFamily: "var(--font-ui, 'DM Sans', sans-serif)" }}>
+        <div
+            className="relative min-h-screen w-full overflow-hidden pt-6 sm:pt-10"
+            style={{
+                fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
+                background: isDark
+                    ? "linear-gradient(145deg, #0B0B16 0%, #111125 50%, #0D0D18 100%)"
+                    : "linear-gradient(145deg, #F8F6F1 0%, #F0EDE6 40%, #EBE8E0 100%)",
+            }}
+        >
+            {/* Ambient gradient orbs behind everything */}
+            <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+                <div className="absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-[#00897B] opacity-[0.07] blur-[140px]" />
+                <div className="absolute right-[-10%] top-[30%] h-[420px] w-[420px] rounded-full bg-[#5849E8] opacity-[0.06] blur-[130px]" />
+                <div className="absolute bottom-[-5%] left-[40%] h-[350px] w-[350px] rounded-full bg-[#F59E0B] opacity-[0.04] blur-[120px]" />
+            </div>
+
             {/* Background Pattern */}
             <DotPattern
                 width={16}
@@ -867,52 +920,68 @@ export default function SessionPage() {
                 cx={1}
                 cy={1}
                 cr={1.5}
-                className="absolute inset-0 z-0 opacity-50 text-[#C4C3CE]"
+                className="absolute inset-0 z-0 opacity-30 text-[#C4C3CE] dark:opacity-10"
                 glow={true}
             />
 
             {/* Session Content */}
-            <div className="relative z-10 mx-auto flex h-[calc(100vh-80px)] w-full flex-col p-6 lg:flex-row gap-6">
+            <div className="relative z-10 mx-auto flex h-[calc(100vh-60px)] sm:h-[calc(100vh-80px)] w-full flex-col p-3 sm:p-6 lg:flex-row gap-4 sm:gap-5">
 
-                {/* Left Partition - Live Chat */}
-                <div className={`${isCanvasCollapsed ? "lg:basis-[75%] lg:max-w-[75%]" : "lg:basis-[42%] lg:max-w-[42%]"} relative overflow-hidden rounded-[2.5rem] bg-white/40 dark:bg-[#0F0F1C]/85 backdrop-blur-3xl shadow-[0_8px_32px_0_rgba(26,26,46,0.04)] border border-white/60 dark:border-white/[0.07] p-6 flex flex-col min-h-0 transition-all duration-300`}>
-
-                    {/* Aurora Orbs (Colorful Gradient) */}
-                    <div className="absolute -left-32 -top-32 z-0 h-96 w-96 rounded-full bg-[#00897B] opacity-20 blur-[100px]" />
-                    <div className="absolute -right-32 -bottom-32 z-0 h-96 w-96 rounded-full bg-[#5849E8] opacity-20 blur-[100px]" />
-                    <div className="absolute left-1/2 top-1/2 z-0 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F59E0B] opacity-10 blur-[80px]" />
+                {/* ═══════════════ Left Partition - Live Chat ═══════════════ */}
+                <div
+                    className={`${isCanvasCollapsed ? "lg:basis-[75%] lg:max-w-[75%]" : "lg:basis-[42%] lg:max-w-[42%]"} relative overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-7 flex flex-col min-h-0 transition-all duration-500 ease-out`}
+                    style={{
+                        background: isDark
+                            ? "rgba(15, 15, 28, 0.80)"
+                            : "rgba(255, 255, 255, 0.45)",
+                        backdropFilter: "blur(40px) saturate(1.6)",
+                        WebkitBackdropFilter: "blur(40px) saturate(1.6)",
+                        border: isDark
+                            ? "1px solid rgba(255,255,255,0.06)"
+                            : "1px solid rgba(255,255,255,0.7)",
+                        boxShadow: isDark
+                            ? "0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"
+                            : "0 8px 40px rgba(26,26,46,0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
+                    }}
+                >
+                    {/* Aurora Orbs */}
+                    <div className="absolute -left-28 -top-28 z-0 h-80 w-80 rounded-full bg-[#00897B] opacity-[0.12] blur-[100px] dark:opacity-[0.08]" />
+                    <div className="absolute -right-28 -bottom-28 z-0 h-80 w-80 rounded-full bg-[#5849E8] opacity-[0.10] blur-[100px] dark:opacity-[0.06]" />
+                    <div className="absolute left-1/2 top-1/3 z-0 h-64 w-64 -translate-x-1/2 rounded-full bg-[#F59E0B] opacity-[0.06] blur-[80px] dark:opacity-[0.03]" />
 
                     {/* Glass Noise Texture */}
                     <div
-                        className="absolute inset-0 z-0 opacity-[0.25] pointer-events-none mix-blend-soft-light"
+                        className="absolute inset-0 z-0 opacity-[0.18] pointer-events-none mix-blend-soft-light"
                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
                     />
 
-                    <div className="relative z-10 flex h-full w-full flex-col min-h-0 pt-2">
+                    <div className="relative z-10 flex h-full w-full flex-col min-h-0">
                         {/* Session Header */}
-                        <div className="flex items-center justify-between mb-6 px-2">
-                            <div>
-                                <h1 className="text-[20px] font-semibold text-[#1A1A2E] dark:text-[#E8E8FF] leading-tight flex items-center gap-2">
-                                    <Sparkles className="text-[#00897B]" size={20} />
-                                    {sessionData?.topic || "Loading Topic..."}
+                        <div className="flex items-center justify-between mb-5 sm:mb-6 px-1">
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-[18px] sm:text-[20px] font-bold text-[#1A1A2E] dark:text-[#EDEDFF] leading-tight flex items-center gap-2.5 tracking-tight">
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#00897B] to-[#00695C] shadow-md shadow-[#00897B]/20">
+                                        <Sparkles className="text-white" size={16} />
+                                    </span>
+                                    <span className="truncate">{sessionData?.topic || "Loading Topic..."}</span>
                                 </h1>
-                                <p className="text-[13px] text-[#4A4A68] dark:text-[#8080AA] mt-0.5">Teaching {personaName} everything you know</p>
+                                <p className="text-[12px] sm:text-[13px] text-[#7A7A98] dark:text-[#6868AA] mt-1 ml-[42px] font-medium">Teaching {personaName} everything you know</p>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0 ml-3">
                                 <button
                                     type="button"
                                     onClick={() => setIsCanvasCollapsed((prev) => !prev)}
-                                    className="h-9 w-9 rounded-lg border border-[#E2DFD8] dark:border-white/10 bg-white/70 dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] hover:bg-[#F7F6F2] dark:hover:bg-white/10 transition flex items-center justify-center"
+                                    className="h-9 w-9 rounded-xl border border-[#E2DFD8] dark:border-white/10 bg-white/70 dark:bg-white/[0.05] text-[#5A5A78] dark:text-[#9898BB] hover:bg-white dark:hover:bg-white/10 hover:border-[#D0CCC4] dark:hover:border-white/20 transition-all duration-200 flex items-center justify-center shadow-sm"
                                     title={isCanvasCollapsed ? "Expand drawing panel" : "Collapse drawing panel"}
                                 >
-                                    {isCanvasCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                                    {isCanvasCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
                                 </button>
 
                                 {!isSessionEnded && (
                                     <button
                                         onClick={() => setShowEndModal(true)}
-                                        className="px-4 py-2 rounded-xl text-[13px] font-semibold text-[#4A4A68] dark:text-[#9898BB] bg-white/50 dark:bg-white/[0.06] border border-[#E2DFD8] dark:border-white/10 hover:bg-[#EF4444]/10 hover:border-[#EF4444]/30 hover:text-[#EF4444] transition-all"
+                                        className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-[#7A7A98] dark:text-[#9898BB] bg-white/60 dark:bg-white/[0.05] border border-[#E2DFD8] dark:border-white/10 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-200 dark:hover:border-red-500/20 hover:text-red-500 transition-all duration-200 shadow-sm"
                                     >
                                         End Session
                                     </button>
@@ -923,37 +992,71 @@ export default function SessionPage() {
                         {/* Messages Area */}
                         <div
                             ref={messagesContainerRef}
-                            className="flex-1 overflow-y-auto px-2 space-y-6 pb-6 w-full custom-scrollbar min-h-0"
+                            className="flex-1 overflow-y-auto px-1 sm:px-2 space-y-5 sm:space-y-6 pb-6 w-full custom-scrollbar min-h-0"
                         >
-
                             {messages.map((msg, idx) => {
                                 if (msg.role === "user") {
                                     return (
-                                        <div key={idx} className="flex flex-col items-end w-full">
-                                            <div className="rounded-[24px] rounded-br-[8px] bg-[#5849E8] px-5 py-3 text-[15px] text-white shadow-sm max-w-[80%] whitespace-pre-wrap">
+                                        <div key={idx} className="flex items-start justify-end gap-3 w-full">
+                                            {/* Message */}
+                                            <div
+                                                className="rounded-[22px] rounded-br-[8px] px-5 py-3.5 text-[14.5px] text-white shadow-lg max-w-[75%] whitespace-pre-wrap leading-relaxed"
+                                                style={{
+                                                background: "linear-gradient(135deg, #6C5CE7 0%, #5849E8 50%, #4A3DD0 100%)",
+                                                boxShadow: "0 4px 20px rgba(88,73,232,0.25)",
+                                                }}
+                                            >
                                                 {msg.content}
-                                                {msg.drawingImage && (
-                                                    <img
-                                                        src={msg.drawingImage}
-                                                        alt="Drawing sent"
-                                                        className="mt-3 rounded-xl border border-white/20 max-h-36 w-full object-contain bg-white/10"
-                                                    />
-                                                )}
                                             </div>
-                                        </div>
+
+                                            {/* 👤 USER ICON */}
+                                            <div
+                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                                                style={{
+                                                background: "linear-gradient(145deg, #EEF0FF 0%, #DDE1FF 50%, #C7CCFF 100%)",
+                                                boxShadow: "0 2px 12px rgba(88,73,232,0.2), inset 0 1px 2px rgba(255,255,255,0.6)",
+                                                }}
+                                            >
+                                                <User size={16} className="text-[#5849E8]" />
+                                            </div>
+
+                                            </div>
                                     )
                                 } else {
                                     return (
-                                        <div key={idx} className="flex w-full items-start gap-4">
-                                            {/* Shiny Orb Avatar (Curious State) */}
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#00897B] bg-[#E8F8F4] overflow-hidden shadow-[inset_0_2px_10px_rgba(0,137,123,0.2)]">
-                                                <div className="h-full w-full bg-linear-to-br from-[#E8F8F4] via-white to-[#B2DFDB] opacity-80" />
+                                        <div key={idx} className="flex w-full items-start gap-3.5 animate-in slide-in-from-left-2 fade-in duration-300">
+                                            {/* Avatar */}
+                                            <div
+                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full overflow-hidden"
+                                                style={{
+                                                    background: "linear-gradient(145deg, #E0F7F3 0%, #B2DFDB 50%, #80CBC4 100%)",
+                                                    boxShadow: "0 2px 12px rgba(0,137,123,0.2), inset 0 1px 2px rgba(255,255,255,0.6)",
+                                                }}
+                                            >
+                                                <Sparkles size={14} className="text-[#00695C]" />
                                             </div>
 
                                             <div className="flex flex-col items-start max-w-[80%]">
-                                                <div className="rounded-[24px] rounded-tl-[8px] bg-white dark:bg-[#1E1E35] px-5 py-3.5 text-[15px] text-[#1A1A2E] dark:text-[#E8E8FF] shadow-sm whitespace-pre-wrap">
+                                                <div
+                                                    className="rounded-[22px] rounded-tl-[8px] px-5 py-3.5 text-[14.5px] text-[#1A1A2E] dark:text-[#E8E8FF] whitespace-pre-wrap leading-relaxed"
+                                                    style={{
+                                                        background: isDark
+                                                            ? "rgba(30, 30, 53, 0.9)"
+                                                            : "rgba(255, 255, 255, 0.85)",
+                                                        backdropFilter: "blur(12px)",
+                                                        boxShadow: isDark
+                                                            ? "0 2px 12px rgba(0,0,0,0.2)"
+                                                            : "0 2px 12px rgba(0,0,0,0.04)",
+                                                        border: isDark
+                                                            ? "1px solid rgba(255,255,255,0.06)"
+                                                            : "1px solid rgba(255,255,255,0.9)",
+                                                    }}
+                                                >
                                                     {msg.content === "" ? (
-                                                        <Loader2 className="animate-spin text-[#00897B]" size={16} />
+                                                        <div className="flex items-center gap-2">
+                                                            <Loader2 className="animate-spin text-[#00897B]" size={15} />
+                                                            <span className="text-[13px] text-[#9898AA]">Thinking...</span>
+                                                        </div>
                                                     ) : (
                                                         msg.content
                                                     )}
@@ -968,39 +1071,73 @@ export default function SessionPage() {
                         {/* Input Area */}
                         {isSessionEnded ? (
                             <div className="mt-auto pt-4 pb-2 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="rounded-3xl bg-[#E8F8F4] border border-[#00897B]/30 p-6 flex flex-col items-center text-center gap-4">
-                                    <div className="h-12 w-12 rounded-full bg-[#00897B] flex items-center justify-center text-white shadow-lg">
-                                        <ThumbsUp size={24} />
+                                <div
+                                    className="rounded-[1.75rem] p-6 sm:p-7 flex flex-col items-center text-center gap-4"
+                                    style={{
+                                        background: isDark
+                                            ? "linear-gradient(135deg, rgba(0,137,123,0.12) 0%, rgba(0,105,92,0.08) 100%)"
+                                            : "linear-gradient(135deg, #E8F8F4 0%, #D4F1EC 100%)",
+                                        border: isDark
+                                            ? "1px solid rgba(0,137,123,0.2)"
+                                            : "1px solid rgba(0,137,123,0.25)",
+                                    }}
+                                >
+                                    <div
+                                        className="h-14 w-14 rounded-2xl flex items-center justify-center text-white"
+                                        style={{
+                                            background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
+                                            boxShadow: "0 6px 24px rgba(0,137,123,0.35)",
+                                        }}
+                                    >
+                                        <ThumbsUp size={26} />
                                     </div>
                                     <div>
-                                        <h3 className="text-[18px] font-bold text-[#00695C]">Session Successfully Concluded!</h3>
-                                        <p className="text-[14px] text-[#00695C]/80 mt-1">{personaName} has a much better understanding of {sessionData?.topic} now.</p>
+                                        <h3 className="text-[18px] font-bold text-[#00695C] dark:text-[#4DB6AC]">Session Successfully Concluded!</h3>
+                                        <p className="text-[14px] text-[#00695C]/70 dark:text-[#80CBC4]/70 mt-1.5 leading-relaxed">{personaName} has a much better understanding of {sessionData?.topic} now.</p>
                                     </div>
                                     <button
                                         onClick={() => router.push(`/report/${id}`)}
-                                        className="w-full sm:w-auto px-10 py-3.5 rounded-2xl text-white font-bold shadow-xl transition hover:scale-105 active:scale-95"
-                                        style={{ background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)" }}
+                                        className="w-full sm:w-auto px-10 py-3.5 rounded-2xl text-white font-bold shadow-xl transition-all duration-200 hover:scale-[1.03] hover:shadow-2xl active:scale-[0.97]"
+                                        style={{
+                                            background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
+                                            boxShadow: "0 6px 28px rgba(0,137,123,0.35)",
+                                        }}
                                     >
                                         View Your Mastery Report →
                                     </button>
                                 </div>
                             </div>
                         ) : (
-                            <div className="mt-auto pt-4 relative flex items-center gap-3 w-full">
+                            <div className="mt-auto pt-4 relative flex items-end gap-3 w-full">
 
                                 {/* The glass input capsule */}
-                                <div className="flex-1 rounded-full bg-white/80 dark:bg-[#1E1E35]/90 backdrop-blur-md border border-white dark:border-white/10 px-6 py-3.5 shadow-sm">
-                                    <div className="mb-2 flex items-center gap-2">
-                                        <span className="text-[11px] text-[#4A4A68] dark:text-[#8080AA]">Voice:</span>
+                                <div
+                                    className="flex-1 rounded-[1.5rem] px-5 sm:px-6 py-3.5 sm:py-4"
+                                    style={{
+                                        background: isDark
+                                            ? "rgba(30, 30, 53, 0.85)"
+                                            : "rgba(255, 255, 255, 0.82)",
+                                        backdropFilter: "blur(20px)",
+                                        WebkitBackdropFilter: "blur(20px)",
+                                        border: isDark
+                                            ? "1px solid rgba(255,255,255,0.08)"
+                                            : "1.5px solid rgba(255,255,255,0.9)",
+                                        boxShadow: isDark
+                                            ? "0 4px 24px rgba(0,0,0,0.25)"
+                                            : "0 4px 24px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+                                    }}
+                                >
+                                    <div className="mb-2.5 flex items-center gap-2">
+                                        <span className="text-[11px] font-medium text-[#8A8AA8] dark:text-[#6868AA] uppercase tracking-wider">Voice</span>
                                         <button
                                             type="button"
                                             onClick={() => {
                                                 setSpeechError("");
                                                 setTtsProvider("gemini");
                                             }}
-                                            className={`rounded-full px-3 py-1 text-[11px] font-medium border transition ${ttsProvider === "gemini"
-                                                ? "bg-[#E8F8F4] text-[#00695C] border-[#00897B]/40"
-                                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
+                                            className={`rounded-full px-3 py-[5px] text-[11px] font-semibold border transition-all duration-200 ${ttsProvider === "gemini"
+                                                ? "bg-teal-50 dark:bg-teal-500/10 text-[#00695C] dark:text-[#4DB6AC] border-teal-200 dark:border-teal-500/20 shadow-sm"
+                                                : "bg-white/60 dark:bg-white/[0.04] text-[#8A8AA8] dark:text-[#7A7AAA] border-[#E8E5DE] dark:border-white/10 hover:bg-white dark:hover:bg-white/[0.08]"}`}
                                         >
                                             Gemini
                                         </button>
@@ -1014,19 +1151,25 @@ export default function SessionPage() {
                                                 setSpeechError("");
                                                 setTtsProvider("puter");
                                             }}
-                                            className={`rounded-full px-3 py-1 text-[11px] font-medium border transition ${ttsProvider === "puter"
-                                                ? "bg-[#EEF0FF] text-[#3D30C4] border-[#5849E8]/40"
-                                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
+                                            className={`rounded-full px-3 py-[5px] text-[11px] font-semibold border transition-all duration-200 ${ttsProvider === "puter"
+                                                ? "bg-indigo-50 dark:bg-indigo-500/10 text-[#3D30C4] dark:text-[#A5A0FF] border-indigo-200 dark:border-indigo-500/20 shadow-sm"
+                                                : "bg-white/60 dark:bg-white/[0.04] text-[#8A8AA8] dark:text-[#7A7AAA] border-[#E8E5DE] dark:border-white/10 hover:bg-white dark:hover:bg-white/[0.08]"}`}
                                         >
                                             Puter {!isPuterReady ? "(loading)" : ""}
                                         </button>
                                     </div>
                                     {(isRecording || speechError) && (
-                                        <div className="mb-1 text-[11px] leading-none">
+                                        <div className="mb-2 text-[11px] leading-none">
                                             {isRecording ? (
-                                                <span className="font-medium text-[#00897B]">Recording... tap mic again to stop.</span>
+                                                <span className="font-semibold text-[#00897B] flex items-center gap-1.5">
+                                                    <span className="h-2 w-2 rounded-full bg-[#00897B] animate-pulse" />
+                                                    Recording... tap mic to stop
+                                                </span>
                                             ) : (
-                                                <span className="font-medium text-[#EF4444]">{speechError}</span>
+                                                <span className="font-medium text-red-500 flex items-center gap-1.5">
+                                                    <AlertCircle size={12} />
+                                                    {speechError}
+                                                </span>
                                             )}
                                         </div>
                                     )}
@@ -1039,126 +1182,91 @@ export default function SessionPage() {
                                             if (e.key === 'Enter') sendMessage()
                                         }}
                                         disabled={isStreaming}
-                                        className="w-full border-none bg-transparent text-[15px] text-[#1A1A2E] dark:text-[#E8E8FF] placeholder-[#9898AA] dark:placeholder-[#5050AA] focus:ring-0 focus:outline-none disabled:opacity-50"
-                                        placeholder="Ask me anything..."
+                                        className="w-full border-none bg-transparent text-[15px] text-[#1A1A2E] dark:text-[#E8E8FF] placeholder-[#B0B0C8] dark:placeholder-[#4848AA] focus:ring-0 focus:outline-none disabled:opacity-40"
+                                        placeholder="Teach something new..."
                                     />
                                 </div>
 
                                 {/* Circular Action Buttons */}
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-2.5 shrink-0 pb-1">
                                     <button
                                         onClick={toggleSpeechRecognition}
                                         disabled={!speechSupported || isStreaming}
-                                        className={`flex h-[50px] w-[50px] items-center justify-center rounded-full border backdrop-blur-md transition-colors shadow-sm cursor-pointer disabled:opacity-50 ${isRecording
-                                            ? "border-[#00897B] bg-[#E8F8F4] text-[#00695C]"
-                                            : "border-[#E2DFD8] dark:border-white/10 bg-white/80 dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] hover:bg-white dark:hover:bg-white/10"}`}
+                                        className={`flex h-12 w-12 items-center justify-center rounded-[1rem] border transition-all duration-200 shadow-sm cursor-pointer disabled:opacity-40 ${isRecording
+                                            ? "border-teal-300 dark:border-teal-500/30 bg-teal-50 dark:bg-teal-500/10 text-[#00695C] dark:text-[#4DB6AC] shadow-teal-200/50 dark:shadow-teal-500/10"
+                                            : "border-[#E8E5DE] dark:border-white/10 bg-white/80 dark:bg-white/[0.04] text-[#7A7A98] dark:text-[#9898BB] hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20"}`}
                                         title={isRecording ? "Stop recording" : "Start voice input"}
+                                        style={{
+                                            backdropFilter: "blur(12px)",
+                                        }}
                                     >
-                                        <Mic size={20} />
+                                        <Mic size={19} />
                                     </button>
                                     <button
                                         onClick={sendMessage}
                                         disabled={!hasInput || isStreaming}
-                                        className="flex h-[50px] w-[50px] items-center justify-center rounded-full text-white shadow-md transition-transform hover:scale-[1.05] active:scale-[0.95] cursor-pointer disabled:opacity-50 disabled:hover:scale-100"
-                                        style={{ background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)" }}
+                                        className="flex h-12 w-12 items-center justify-center rounded-[1rem] text-white transition-all duration-200 hover:scale-[1.06] active:scale-[0.94] cursor-pointer disabled:opacity-40 disabled:hover:scale-100"
+                                        style={{
+                                            background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
+                                            boxShadow: "0 4px 20px rgba(0,137,123,0.35), inset 0 1px 0 rgba(255,255,255,0.15)",
+                                        }}
                                     >
-                                        <Send size={18} className="-ml-0.5" />
+                                        <Send size={17} className="-ml-0.5" />
                                     </button>
                                 </div>
                             </div>
                         )}
-
                     </div>
                 </div>
 
-                {/* Middle Partition - Drawing Canvas Placeholder */}
+                {/* ═══════════════ Middle Partition - Drawing Canvas (PERFECT FIT) ═══════════════ */}
                 {!isCanvasCollapsed && (
-                <div className="lg:basis-[33%] lg:max-w-[33%] rounded-3xl bg-white/65 dark:bg-[#0F0F1C]/80 backdrop-blur-md shadow-sm border border-[#E2DFD8] dark:border-white/[0.08] p-4 flex flex-col min-h-0 transition-all duration-300">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                        <h2 className="text-[15px] font-semibold text-[#1A1A2E] dark:text-[#E8E8FF]">Teach With Drawing</h2>
-                        <span className="text-[11px] text-[#9898AA] dark:text-[#5050AA]">Canvas</span>
+                <div
+                    className="lg:basis-[33%] lg:max-w-[33%] rounded-[2rem] p-4 sm:p-5 flex flex-col min-h-0 transition-all duration-500 ease-out animate-in slide-in-from-left-4 fade-in duration-300"
+                    style={{
+                        background: isDark
+                            ? "rgba(15, 15, 28, 0.75)"
+                            : "rgba(255, 255, 255, 0.55)",
+                        backdropFilter: "blur(30px) saturate(1.4)",
+                        WebkitBackdropFilter: "blur(30px) saturate(1.4)",
+                        border: isDark
+                            ? "1px solid rgba(255,255,255,0.06)"
+                            : "1px solid rgba(255,255,255,0.7)",
+                        boxShadow: isDark
+                            ? "0 8px 32px rgba(0,0,0,0.3)"
+                            : "0 8px 32px rgba(26,26,46,0.05)",
+                    }}
+                >
+                    <div className="flex items-center justify-between mb-3.5 px-1">
+                        <h2 className="text-[15px] font-bold text-[#1A1A2E] dark:text-[#EDEDFF] tracking-tight">Teach With Drawing</h2>
+                        <span className="text-[11px] font-medium text-[#B0B0C8] dark:text-[#5050AA] uppercase tracking-wider">Canvas</span>
                     </div>
 
-                    <div className="mb-3 flex items-center gap-2 flex-wrap">
-                        <button
-                            type="button"
-                            onClick={() => setDrawTool("pen")}
-                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition ${drawTool === "pen"
-                                ? "bg-[#E8F8F4] text-[#00695C] border-[#00897B]/40"
-                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
-                        >
-                            Pen
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDrawTool("eraser")}
-                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition ${drawTool === "eraser"
-                                ? "bg-[#FEF3C7] text-[#B45309] border-[#F59E0B]/50"
-                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
-                        >
-                            Eraser
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDrawTool("rectangle")}
-                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition ${drawTool === "rectangle"
-                                ? "bg-[#E8F8F4] text-[#00695C] border-[#00897B]/40"
-                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
-                        >
-                            Rectangle
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDrawTool("circle")}
-                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition ${drawTool === "circle"
-                                ? "bg-[#E8F8F4] text-[#00695C] border-[#00897B]/40"
-                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
-                        >
-                            Circle
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDrawTool("line")}
-                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition ${drawTool === "line"
-                                ? "bg-[#E8F8F4] text-[#00695C] border-[#00897B]/40"
-                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
-                        >
-                            Line
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDrawTool("triangle")}
-                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition ${drawTool === "triangle"
-                                ? "bg-[#E8F8F4] text-[#00695C] border-[#00897B]/40"
-                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
-                        >
-                            Triangle
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setDrawTool("text")}
-                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition ${drawTool === "text"
-                                ? "bg-[#EEF0FF] text-[#3D30C4] border-[#5849E8]/40"
-                                : "bg-white dark:bg-white/[0.05] text-[#4A4A68] dark:text-[#9898BB] border-[#E2DFD8] dark:border-white/10"}`}
-                        >
-                            Text
-                        </button>
+                    <div className="mb-3 flex items-center gap-1.5 flex-wrap">
+                        {toolBtn("pen", "Pen")}
+                        {toolBtn("eraser", "Eraser")}
+                        {toolBtn("rectangle", "Rect")}
+                        {toolBtn("circle", "Circle")}
+                        {toolBtn("line", "Line")}
+                        {toolBtn("triangle", "Tri")}
+                        {toolBtn("text", "Text")}
+                        <div className="ml-1 h-8 w-px bg-[#E8E5DE] dark:bg-white/10" />
                         <input
                             type="color"
                             value={brushColor}
                             onChange={(e) => setBrushColor(e.target.value)}
-                            className="h-8 w-9 rounded border border-[#E2DFD8] bg-white p-0"
+                            className="h-8 w-9 rounded-lg border border-[#E8E5DE] dark:border-white/10 bg-white dark:bg-white/[0.04] p-0.5 cursor-pointer"
                             title="Brush color"
                         />
-                        <div className="flex items-center gap-2 px-2 py-1 rounded-lg border border-[#E2DFD8] dark:border-white/10 bg-white dark:bg-white/[0.05]">
-                            <span className="text-[11px] text-[#4A4A68] dark:text-[#8080AA]">Size</span>
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white/80 dark:bg-white/[0.04]">
+                            <span className="text-[11px] font-medium text-[#8A8AA8] dark:text-[#6868AA]">Size</span>
                             <input
                                 type="range"
                                 min={2}
                                 max={16}
                                 value={brushSize}
                                 onChange={(e) => setBrushSize(Number(e.target.value))}
-                                className="w-20"
+                                className="w-16 accent-[#00897B]"
                             />
                         </div>
                         {drawTool === "text" && (
@@ -1167,16 +1275,25 @@ export default function SessionPage() {
                                 value={shapeText}
                                 onChange={(e) => setShapeText(e.target.value)}
                                 placeholder="Text to place"
-                                className="h-9 w-40 rounded-lg border border-[#E2DFD8] bg-white px-3 text-[12px] text-[#1A1A2E] placeholder-[#9898AA] focus:outline-none focus:ring-2 focus:ring-[#00897B]/30"
+                                className="h-9 w-36 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white dark:bg-white/[0.04] px-3 text-[12px] text-[#1A1A2E] dark:text-[#E8E8FF] placeholder-[#B0B0C8] dark:placeholder-[#5050AA] focus:outline-none focus:ring-2 focus:ring-[#00897B]/25 transition"
                             />
                         )}
                     </div>
 
-                    <div ref={canvasContainerRef} className="flex-1 rounded-2xl border border-dashed border-[#C8C5BC] dark:border-white/15 bg-[#F7F6F2] dark:bg-[#13131F] relative overflow-hidden min-h-[260px] lg:min-h-0">
-                        <div className="absolute inset-0 pointer-events-none opacity-25" style={{ backgroundImage: "radial-gradient(circle, #D8D4CC 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
+                    {/* Canvas Container - Fills available space */}
+                    <div
+                        ref={canvasContainerRef}
+                        className="flex-1 rounded-2xl border-2 border-dashed border-[#D8D4CC] dark:border-white/10 bg-[#F7F6F2] dark:bg-[#13131F] relative overflow-hidden"
+                        style={{
+                            minHeight: "280px",
+                            boxShadow: "inset 0 2px 8px rgba(0,0,0,0.03)",
+                        }}
+                    >
+                        <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: "radial-gradient(circle, #D0CCC4 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
                         <canvas
                             ref={canvasRef}
                             className="absolute inset-0 w-full h-full touch-none"
+                            style={{ display: "block" }}
                             onPointerDown={startDrawing}
                             onPointerMove={drawLine}
                             onPointerUp={(e) => stopDrawing(e)}
@@ -1188,7 +1305,7 @@ export default function SessionPage() {
                         <button
                             type="button"
                             onClick={clearCanvas}
-                            className="px-3 py-2 rounded-xl border border-[#E2DFD8] dark:border-white/10 bg-white dark:bg-white/[0.05] text-[12px] font-medium text-[#4A4A68] dark:text-[#9898BB] hover:bg-[#F7F6F2] dark:hover:bg-white/10 transition"
+                            className="px-4 py-2.5 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white/80 dark:bg-white/[0.04] text-[12px] font-semibold text-[#7A7A98] dark:text-[#9898BB] hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20 transition-all duration-200 shadow-sm"
                         >
                             Clear
                         </button>
@@ -1196,8 +1313,11 @@ export default function SessionPage() {
                             type="button"
                             onClick={sendDrawing}
                             disabled={isStreaming}
-                            className="px-3 py-2 rounded-xl text-[12px] font-medium text-white"
-                            style={{ background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)" }}
+                            className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-white transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40"
+                            style={{
+                                background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
+                                boxShadow: "0 4px 16px rgba(0,137,123,0.3)",
+                            }}
                         >
                             Send Drawing
                         </button>
@@ -1205,18 +1325,18 @@ export default function SessionPage() {
                 </div>
                 )}
 
-                {/* Right Partition */}
-                <div className="lg:basis-[25%] lg:max-w-[25%] flex flex-col gap-4">
+                {/* ═══════════════ Right Partition ═══════════════ */}
+                <div className="lg:basis-[25%] lg:max-w-[25%] flex flex-col gap-4 sm:gap-5">
 
-                    {/* Right Top Section - Avatar Video Area */}
-                    <div className="flex-[0.4] rounded-3xl bg-[#1A1A2E] shadow-lg border border-[#E2DFD8]/20 p-0 flex flex-col items-center justify-center relative overflow-hidden">
-
-                        {/* 
-                          PRO-TIP: To make the black background of your avatar completely transparent:
-                          Apply the 'mix-blend-screen' CSS class to the video element.
-                          Because the lights are cyan, they look best against this deep dark container (#1A1A2E) 
-                          rather than the super bright page background!
-                        */}
+                    {/* Avatar Video Area */}
+                    <div
+                        className="flex-[0.4] rounded-[2rem] p-0 flex flex-col items-center justify-center relative overflow-hidden"
+                        style={{
+                            background: "linear-gradient(145deg, #12122A 0%, #1A1A2E 50%, #151530 100%)",
+                            boxShadow: "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                        }}
+                    >
                         <video
                             key={`${avatarVideoSrc}-${avatarPlaybackKey}`}
                             autoPlay
@@ -1234,21 +1354,35 @@ export default function SessionPage() {
                         />
                     </div>
 
-                    {/* Right Bottom Section - Concept Radar */}
-                    <div className="flex-[0.6] rounded-3xl bg-white/70 backdrop-blur-md shadow-sm border border-[#E2DFD8] p-4 flex flex-col items-center justify-center relative overflow-hidden">
+                    {/* Concept Radar */}
+                    <div
+                        className="flex-[0.6] rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center relative overflow-hidden"
+                        style={{
+                            background: isDark
+                                ? "rgba(15, 15, 28, 0.75)"
+                                : "rgba(255, 255, 255, 0.6)",
+                            backdropFilter: "blur(30px) saturate(1.4)",
+                            WebkitBackdropFilter: "blur(30px) saturate(1.4)",
+                            border: isDark
+                                ? "1px solid rgba(255,255,255,0.06)"
+                                : "1px solid rgba(255,255,255,0.7)",
+                            boxShadow: isDark
+                                ? "0 8px 32px rgba(0,0,0,0.3)"
+                                : "0 8px 32px rgba(26,26,46,0.05)",
+                        }}
+                    >
                         {!isLoading && sessionData && sessionData.conceptTree ? (
                             <RadarChart
                                 concepts={sessionData.conceptTree}
                                 depthScores={sessionData.depthScores || {}}
                             />
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full w-full text-[#9898AA]">
-                                <Loader2 className="animate-spin text-[#00897B] mb-2" size={24} />
-                                <p className="text-sm">Mapping Concepts...</p>
+                            <div className="flex flex-col items-center justify-center h-full w-full text-[#B0B0C8] dark:text-[#6868AA]">
+                                <Loader2 className="animate-spin text-[#00897B] mb-3" size={22} />
+                                <p className="text-[13px] font-medium">Mapping Concepts...</p>
                             </div>
                         )}
                     </div>
-
                 </div>
             </div>
 
@@ -1256,8 +1390,11 @@ export default function SessionPage() {
             <button
                 onClick={simulateAnimation}
                 disabled={!sessionData || !sessionData.conceptTree}
-                className="absolute bottom-6 right-6 z-50 rounded-full px-4 py-2 text-xs font-semibold text-white shadow-lg transition hover:scale-105 active:scale-95 disabled:opacity-50"
-                style={{ background: "#5849E8" }}
+                className="absolute bottom-6 right-6 z-50 rounded-2xl px-5 py-2.5 text-[11px] font-bold text-white shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 uppercase tracking-wider"
+                style={{
+                    background: "linear-gradient(135deg, #6C5CE7 0%, #5849E8 100%)",
+                    boxShadow: "0 4px 20px rgba(88,73,232,0.35)",
+                }}
                 title="Simulate AI Progression"
             >
                 Simulate AI
@@ -1265,28 +1402,56 @@ export default function SessionPage() {
 
             {/* Confirmation Modal */}
             {showEndModal && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[2px] animate-in fade-in duration-200">
-                    <div className="w-full max-w-md rounded-[2.5rem] bg-white p-8 shadow-2xl border border-[#E2DFD8] animate-in zoom-in-95 duration-200">
-                        <div className="flex flex-col items-center text-center gap-6">
-                            <div className="h-16 w-16 rounded-full bg-[#FEF3C7] flex items-center justify-center text-[#F59E0B]">
-                                <AlertCircle size={32} />
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/30 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div
+                        className="w-full max-w-md rounded-[2.25rem] p-8 sm:p-9 animate-in zoom-in-95 duration-300"
+                        style={{
+                            background: isDark
+                                ? "rgba(20, 20, 38, 0.95)"
+                                : "#FFFFFF",
+                            boxShadow: isDark
+                                ? "0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)"
+                                : "0 24px 80px rgba(26,26,46,0.15), 0 0 0 1px rgba(0,0,0,0.04)",
+                        }}
+                    >
+                        <div className="flex flex-col items-center text-center gap-5">
+                            <div
+                                className="h-16 w-16 rounded-2xl flex items-center justify-center"
+                                style={{
+                                    background: "linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)",
+                                    boxShadow: "0 4px 16px rgba(245,158,11,0.2)",
+                                }}
+                            >
+                                <AlertCircle size={30} className="text-amber-600" />
                             </div>
                             <div>
-                                <h2 className="text-[22px] font-bold text-[#1A1A2E]">End this session?</h2>
-                                <p className="text-[15px] text-[#4A4A68] mt-2">
+                                <h2 className="text-[22px] font-bold text-[#1A1A2E] dark:text-[#EDEDFF] tracking-tight">End this session?</h2>
+                                <p className="text-[15px] text-[#7A7A98] dark:text-[#9898BB] mt-2.5 leading-relaxed">
                                     You can end the session now to see your mastery report, or keep teaching {personaName} to cover more concepts.
                                 </p>
                             </div>
-                            <div className="flex flex-col w-full gap-3 mt-2">
+                            <div className="flex flex-col w-full gap-2.5 mt-1">
                                 <button
                                     onClick={handleEndSession}
-                                    className="w-full py-4 rounded-2xl bg-[#EF4444] text-white font-bold shadow-lg hover:bg-red-600 transition active:scale-[0.98]"
+                                    className="w-full py-4 rounded-2xl text-white font-bold transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
+                                    style={{
+                                        background: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+                                        boxShadow: "0 6px 24px rgba(239,68,68,0.3)",
+                                    }}
                                 >
                                     Yes, End Session
                                 </button>
                                 <button
                                     onClick={() => setShowEndModal(false)}
-                                    className="w-full py-4 rounded-2xl bg-white border border-[#E2DFD8] text-[#4A4A68] font-bold hover:bg-[#F7F6F2] transition active:scale-[0.98]"
+                                    className="w-full py-4 rounded-2xl font-bold text-[#7A7A98] dark:text-[#9898BB] transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
+                                    style={{
+                                        background: isDark
+                                            ? "rgba(255,255,255,0.05)"
+                                            : "#F8F6F1",
+                                        border: isDark
+                                            ? "1px solid rgba(255,255,255,0.08)"
+                                            : "1px solid #E8E5DE",
+                                    }}
                                 >
                                     Continue Teaching
                                 </button>
