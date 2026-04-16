@@ -1,49 +1,64 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Brain, Clock, Plus, Loader2 } from "lucide-react"
+import { ArrowRight, Brain, Clock, Plus, Loader2, PlayCircle, Flame, Trophy, CalendarDays } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import { BACKEND_URL } from "@/lib/config"
+import { useTranslations } from "@/lib/translations"
 
-// Removed dummy MOCK_SESSIONS
-
-// Function to map score to color scheme based on PRD Mastery Scale
-function getScoreStyles(score: number) {
-    if (score >= 80) return { bg: "#E8F8F4", text: "#00695C", label: "Strong" }
-    if (score >= 60) return { bg: "#EEF0FF", text: "#3D30C4", label: "Good" }
-    if (score >= 40) return { bg: "#FEF3C7", text: "#B45309", label: "Developing" }
-    return { bg: "#FFF7ED", text: "#C2410C", label: "Early stage" }
+type StreakData = {
+    currentStreak: number
+    longestStreak: number
+    totalDays: number
+    lastActiveDate: string | null
 }
 
 export default function SessionsPage() {
     const { isLoaded, isSignedIn, user } = useUser()
     const [sessions, setSessions] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [streak, setStreak] = useState<StreakData | null>(null)
+    const t = useTranslations()
+    const s = t.sessions
+
+    function getScoreStyles(score: number) {
+        if (score >= 80) return { bg: "#E8F8F4", text: "#00695C", label: s.scoreStrong }
+        if (score >= 60) return { bg: "#EEF0FF", text: "#3D30C4", label: s.scoreGood }
+        if (score >= 40) return { bg: "#FEF3C7", text: "#B45309", label: s.scoreDeveloping }
+        return { bg: "#FFF7ED", text: "#C2410C", label: s.scoreEarlyStage }
+    }
+
+    function dayLabel(count: number) {
+        return count === 1 ? s.day : s.days
+    }
 
     useEffect(() => {
-        const fetchSessions = async () => {
+        const fetchData = async () => {
             if (!isLoaded || !isSignedIn || !user) {
                 if (isLoaded && !isSignedIn) setLoading(false);
                 return;
             }
 
             try {
-                // Fetch directly from the backend server.
-                const response = await fetch(`${BACKEND_URL}/api/users/${user.id}/sessions`);
-                const result = await response.json();
+                const [sessionsRes, streakRes] = await Promise.all([
+                    fetch(`${BACKEND_URL}/api/users/${user.id}/sessions`),
+                    fetch(`${BACKEND_URL}/api/users/${user.id}/streak`),
+                ]);
 
-                if (result.success) {
-                    setSessions(result.data);
-                }
+                const sessionsData = await sessionsRes.json();
+                const streakData = await streakRes.json();
+
+                if (sessionsData.success) setSessions(sessionsData.data);
+                if (streakData.success) setStreak(streakData.data);
             } catch (err) {
-                console.error("Failed to fetch sessions:", err);
+                console.error("Failed to fetch data:", err);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchSessions();
+        fetchData();
     }, [isLoaded, isSignedIn, user]);
 
     return (
@@ -51,7 +66,7 @@ export default function SessionsPage() {
             <div className="mx-auto max-w-5xl">
 
                 {/* Header */}
-                <div className="mb-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+                <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
                     <div>
                         <h1
                             className="text-[#1A1A2E] dark:text-[#EEEEFF]"
@@ -63,10 +78,10 @@ export default function SessionsPage() {
                                 lineHeight: 1.2,
                             }}
                         >
-                            Your Sessions
+                            {s.title}
                         </h1>
-                        <p className="mt-2 text-[15px] text-[#4A4A68]">
-                            Review past teaching sessions and mastery reports.
+                        <p className="mt-2 text-[15px] text-[#4A4A68] dark:text-[#9898AA]">
+                            {s.sub}
                         </p>
                     </div>
 
@@ -81,10 +96,57 @@ export default function SessionsPage() {
                             onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg, #00695C 0%, #004D40 100%)")}
                             onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, #00897B 0%, #00695C 100%)")}
                         >
-                            <Plus size={16} /> New Session
+                            <Plus size={16} /> {s.newSession}
                         </button>
                     </Link>
                 </div>
+
+                {/* Streak Stats Bar */}
+                {streak && (
+                    <div className="mb-10 grid grid-cols-3 gap-4">
+                        {/* Current Streak */}
+                        <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] px-5 py-4 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF3E0] text-[#F57C00]">
+                                <Flame size={20} strokeWidth={2} />
+                            </div>
+                            <div>
+                                <p className="text-[22px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] leading-none">
+                                    {streak.currentStreak}
+                                    <span className="ml-1 text-[13px] font-normal text-[#9898AA]">{dayLabel(streak.currentStreak)}</span>
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">{s.currentStreak}</p>
+                            </div>
+                        </div>
+
+                        {/* Longest Streak */}
+                        <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] px-5 py-4 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF0FF] text-[#3D30C4]">
+                                <Trophy size={20} strokeWidth={2} />
+                            </div>
+                            <div>
+                                <p className="text-[22px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] leading-none">
+                                    {streak.longestStreak}
+                                    <span className="ml-1 text-[13px] font-normal text-[#9898AA]">{dayLabel(streak.longestStreak)}</span>
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">{s.longestStreak}</p>
+                            </div>
+                        </div>
+
+                        {/* Total Active Days */}
+                        <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] px-5 py-4 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F8F4] text-[#00695C]">
+                                <CalendarDays size={20} strokeWidth={2} />
+                            </div>
+                            <div>
+                                <p className="text-[22px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] leading-none">
+                                    {streak.totalDays}
+                                    <span className="ml-1 text-[13px] font-normal text-[#9898AA]">{dayLabel(streak.totalDays)}</span>
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">{s.totalActiveDays}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Sessions Grid */}
                 {loading ? (
@@ -94,17 +156,20 @@ export default function SessionsPage() {
                 ) : (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                         {sessions.map((session) => {
-                            const style = getScoreStyles(session.score)
+                            const isActive = session.status === 'active' || session.status === 'initializing'
+                            const style = getScoreStyles(session.overallScore || session.score || 0)
+                            const href = isActive
+                                ? `/session/${session.sessionId || session._id}`
+                                : `/report/${session.sessionId || session._id}`
 
-                            // Formatting the MongoDB date
                             const dateObj = new Date(session.createdAt)
-                            const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                            const dateStr = dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
 
                             return (
-                                <Link href={`/report/${session.sessionId || session._id}`} key={session.sessionId || session._id}>
+                                <Link href={href} key={session.sessionId || session._id}>
                                     <div
                                         className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-white dark:bg-[#13131F] border border-[#E2DFD8] dark:border-white/[0.08] p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer"
-                                        onMouseEnter={e => (e.currentTarget.style.borderColor = "#C8C5BC")}
+                                        onMouseEnter={e => (e.currentTarget.style.borderColor = isActive ? "#00897B" : "#C8C5BC")}
                                         onMouseLeave={e => (e.currentTarget.style.borderColor = "")}
                                     >
                                         <div>
@@ -112,45 +177,56 @@ export default function SessionsPage() {
                                             <div className="mb-4 flex items-center justify-between">
                                                 <div className="flex items-center gap-1.5 text-[12px] text-[#9898AA]">
                                                     <Clock size={13} />
-                                                    <span>{dateStr} • {session.duration}</span>
+                                                    <span>{dateStr}{session.duration ? ` • ${session.duration}` : ""}</span>
                                                 </div>
-                                                {/* Score Badge */}
-                                                <div
-                                                    className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
-                                                    style={{ background: style.bg, color: style.text }}
-                                                >
-                                                    <Brain size={12} strokeWidth={2.5} />
-                                                    <span style={{ fontSize: "12px", fontWeight: 600 }}>
-                                                        {session.score}% — {style.label}
-                                                    </span>
-                                                </div>
+                                                {/* Status / Score Badge */}
+                                                {isActive ? (
+                                                    <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-[#E8F8F4] text-[#00695C]">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-[#00897B] animate-pulse" />
+                                                        <span style={{ fontSize: "12px", fontWeight: 600 }}>{s.inProgress}</span>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
+                                                        style={{ background: style.bg, color: style.text }}
+                                                    >
+                                                        <Brain size={12} strokeWidth={2.5} />
+                                                        <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                                                            {session.overallScore || session.score || 0}% — {style.label}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Topic */}
-                                            <h3
-                                                className="mb-3 text-[18px] font-semibold text-[#1A1A2E] leading-tight group-hover:text-[#00897B] transition-colors"
-                                            >
+                                            <h3 className="mb-3 text-[18px] font-semibold text-[#1A1A2E] dark:text-[#EEEEFF] leading-tight group-hover:text-[#00897B] transition-colors">
                                                 {session.topic}
                                             </h3>
 
                                             {/* Concepts Tags */}
                                             <div className="flex flex-wrap gap-2 mb-6">
-                                                {session.concepts?.map((concept: string) => (
+                                                {(session.conceptTree || session.concepts)?.slice(0, 4).map((concept: any) => (
                                                     <span
-                                                        key={concept}
-                                                        className="rounded-lg px-2.5 py-1 text-[11px] font-medium text-[#4A4A68] bg-[#F0EEE9] dark:bg-white/[0.06] border border-[#E2DFD8] dark:border-white/[0.08]"
+                                                        key={typeof concept === 'string' ? concept : concept.id}
+                                                        className="rounded-lg px-2.5 py-1 text-[11px] font-medium text-[#4A4A68] dark:text-[#9898BB] bg-[#F0EEE9] dark:bg-white/[0.06] border border-[#E2DFD8] dark:border-white/[0.08]"
                                                     >
-                                                        {concept}
+                                                        {typeof concept === 'string' ? concept : concept.name}
                                                     </span>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        {/* Bottom View Link */}
+                                        {/* Bottom Action Row */}
                                         <div className="flex items-center justify-end border-t border-[#E2DFD8] dark:border-white/[0.08] pt-4 mt-auto">
-                                            <span className="flex items-center gap-1 text-[13px] font-medium text-[#00897B] transition-transform group-hover:translate-x-1">
-                                                View Report <ArrowRight size={14} />
-                                            </span>
+                                            {isActive ? (
+                                                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#00897B] transition-transform group-hover:translate-x-1">
+                                                    <PlayCircle size={15} /> {s.resumeSession}
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1 text-[13px] font-medium text-[#00897B] transition-transform group-hover:translate-x-1">
+                                                    {s.viewReport} <ArrowRight size={14} />
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </Link>
@@ -162,10 +238,8 @@ export default function SessionsPage() {
                 {!loading && sessions.length === 0 && (
                     <div className="flex flex-col items-center justify-center rounded-3xl py-24 text-center border-2 border-dashed border-[#E2DFD8] dark:border-white/10 bg-white dark:bg-[#13131F]">
                         <Brain size={48} className="mb-4 text-[#C4C3CE]" />
-                        <h3 className="mb-2 text-[18px] font-semibold text-[#1A1A2E]">No teaching sessions yet</h3>
-                        <p className="mb-6 max-w-sm text-[14px] text-[#9898AA]">
-                            Start your first session to put your knowledge to the test and uncover your blind spots.
-                        </p>
+                        <h3 className="mb-2 text-[18px] font-semibold text-[#1A1A2E]">{s.emptyTitle}</h3>
+                        <p className="mb-6 max-w-sm text-[14px] text-[#9898AA]">{s.emptySub}</p>
                         <Link href="/onboard">
                             <button
                                 className="rounded-xl px-5 py-2.5 transition"
@@ -176,7 +250,7 @@ export default function SessionsPage() {
                                     background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
                                 }}
                             >
-                                Start your first session
+                                {s.startFirst}
                             </button>
                         </Link>
                     </div>

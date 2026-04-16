@@ -9,19 +9,19 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
 import { BACKEND_URL } from "@/lib/config"
+import { useLanguage } from "@/lib/language-contex"
+import { useTranslations } from "@/lib/translations"
 
 const Onboard = () => {
     const router = useRouter()
     const searchParams = useSearchParams()
     const persona = (searchParams.get("persona") === "leo" ? "leo" : "mia") as "mia" | "leo"
     const personaName = persona === "leo" ? "Leo" : "Mia"
-    const LOADING_MESSAGES = [
-        "Understanding your topic...",
-        `Building ${personaName}'s knowledge...`,
-        "Preparing your session..."
-    ]
     const { user } = useUser()
     const { resolvedTheme } = useTheme()
+    const { language } = useLanguage()
+    const t = useTranslations()
+    const LOADING_MESSAGES = t.onboard.loading(personaName)
     const isDark = resolvedTheme === "dark"
     const [topic, setTopic] = useState("")
     const [isShaking, setIsShaking] = useState(false)
@@ -84,6 +84,7 @@ const Onboard = () => {
             formData.append("topic", topic)
             formData.append("user_id", user.id)
             formData.append("persona", persona)
+            formData.append("language", language.code)
             
             // Pass primary user info to allow backend lazy-creation if webhook was missed
             if (user.primaryEmailAddress) formData.append("email", user.primaryEmailAddress.emailAddress)
@@ -240,7 +241,7 @@ const Onboard = () => {
                                         lineHeight: 1.4,
                                     }}
                                 >
-                                    Enter your topic
+                                    {t.onboard.heading}
                                 </h2>
 
                                 {/* Text input area with error message */}
@@ -252,7 +253,7 @@ const Onboard = () => {
                                             setTopic(e.target.value)
                                             if (status === "error") setStatus("idle")
                                         }}
-                                        placeholder="What do you want to teach today? Try 'Photosynthesis' or 'How React hooks work'"
+                                        placeholder={t.onboard.placeholder}
                                         className={cn(
                                             "w-full resize-none rounded-2xl px-4 py-3 outline-none transition shadow-inner",
                                             isShaking && "animate-shake border-[#EF4444]"
@@ -280,7 +281,7 @@ const Onboard = () => {
                                     />
                                     {isShaking && (
                                         <span className="text-sm px-1 animate-in fade-in" style={{ color: "#EF4444" }}>
-                                            Please enter a topic first.
+                                            {t.onboard.errorTopic}
                                         </span>
                                     )}
                                 </div>
@@ -327,8 +328,8 @@ const Onboard = () => {
                                                 ) : (
                                                     <>
                                                         <span style={{ fontSize: "16px", lineHeight: 1 }}>⊕</span>
-                                                        <span className="font-medium text-[13px]">Add source material</span>
-                                                        <span className="text-[#9898AA] font-medium text-[13px]">(optional)</span>
+                                                        <span className="font-medium text-[13px]">{t.onboard.addSource}</span>
+                                                        <span className="text-[#9898AA] font-medium text-[13px]">{t.onboard.optional}</span>
                                                     </>
                                                 )}
                                             </button>
@@ -407,7 +408,7 @@ const Onboard = () => {
                                 {/* API Error Message */}
                                 {status === "error" && (
                                     <span className="mx-auto text-sm animate-in fade-in" style={{ color: "#EF4444" }}>
-                                        Something went wrong — want to try again?
+                                        {t.onboard.errorApi}
                                     </span>
                                 )}
 
@@ -431,7 +432,7 @@ const Onboard = () => {
                                         "linear-gradient(135deg, #00897B 0%, #00695C 100%)")
                                     }
                                 >
-                                    Start Teaching →
+                                    {t.onboard.cta} →
                                 </button>
                             </div>
                         )}

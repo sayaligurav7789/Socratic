@@ -4,11 +4,14 @@ import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { motion } from "motion/react"
 import Image from "next/image"
+import { useTranslations } from "@/lib/translations"
 
 export default function ChoosePage() {
     const router = useRouter()
     const { resolvedTheme } = useTheme()
     const isDark = resolvedTheme === "dark"
+    const t = useTranslations()
+    const c = t.choose
 
     const handleSelect = (persona: "mia" | "leo") => {
         router.push(`/onboard?persona=${persona}`)
@@ -29,7 +32,7 @@ export default function ChoosePage() {
                     className="text-center text-xs font-semibold tracking-widest uppercase mb-4"
                     style={{ color: isDark ? "#6B6B8A" : "#9999BB" }}
                 >
-                    Choose your student
+                    {c.sectionLabel}
                 </p>
                 <h1
                     className="text-center text-3xl font-light mb-2"
@@ -38,13 +41,13 @@ export default function ChoosePage() {
                         color: isDark ? "#E8E6E0" : "#2A2A3E",
                     }}
                 >
-                    Who are you teaching today?
+                    {c.heading}
                 </h1>
                 <p
                     className="text-center text-sm mb-12"
                     style={{ color: isDark ? "#6B6B8A" : "#8080A0" }}
                 >
-                    Each student tests a different kind of recall.
+                    {c.sub}
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -96,17 +99,17 @@ export default function ChoosePage() {
                             className="text-xs font-semibold uppercase tracking-wider mb-3"
                             style={{ color: "#00897B" }}
                         >
-                            Deep understanding
+                            {c.mia.badge}
                         </p>
                         <p
                             className="text-sm leading-relaxed"
                             style={{ color: isDark ? "#8080AA" : "#606080" }}
                         >
-                            Mia pushes you to explain the <em>why</em> behind everything. She asks follow-up questions, makes connections between concepts, and won't move on until she truly understands.
+                            {c.mia.desc}
                         </p>
 
                         <div className="mt-5 flex flex-wrap gap-2">
-                            {["Mechanisms", "Connections", "Application"].map(tag => (
+                            {c.mia.tags.map(tag => (
                                 <span
                                     key={tag}
                                     className="text-[11px] px-2.5 py-1 rounded-full font-medium"
@@ -124,7 +127,7 @@ export default function ChoosePage() {
                             className="mt-5 text-xs font-medium flex items-center gap-1"
                             style={{ color: "#00897B" }}
                         >
-                            Teach Mia →
+                            {c.mia.cta}
                         </div>
                     </motion.button>
 
@@ -176,17 +179,17 @@ export default function ChoosePage() {
                             className="text-xs font-semibold uppercase tracking-wider mb-3"
                             style={{ color: "#7C3AED" }}
                         >
-                            Surface understanding
+                            {c.leo.badge}
                         </p>
                         <p
                             className="text-sm leading-relaxed"
                             style={{ color: isDark ? "#8080AA" : "#606080" }}
                         >
-                            Leo wants the key facts and definitions — the gist. He's satisfied with clear, concise answers and moves quickly through topics. Great for testing broad recall.
+                            {c.leo.desc}
                         </p>
 
                         <div className="mt-5 flex flex-wrap gap-2">
-                            {["Definitions", "Key facts", "Overview"].map(tag => (
+                            {c.leo.tags.map(tag => (
                                 <span
                                     key={tag}
                                     className="text-[11px] px-2.5 py-1 rounded-full font-medium"
@@ -204,7 +207,7 @@ export default function ChoosePage() {
                             className="mt-5 text-xs font-medium flex items-center gap-1"
                             style={{ color: "#7C3AED" }}
                         >
-                            Teach Leo →
+                            {c.leo.cta}
                         </div>
                     </motion.button>
                 </div>
