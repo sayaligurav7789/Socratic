@@ -132,8 +132,10 @@ flowchart LR
 | **Multimodal Input** | Three ways to teach: • **Text** (type explanations) • **Voice** (speak naturally) • **Canvas** (draw diagrams and teach visually) |
 | **Mastery Report** | Detailed post-session analysis including: • Strengths & weaknesses • Missed misconceptions • Concept coverage heatmap • Shareable performance certificate |
 | **Copy-Paste Detection** | Ensures **genuine learning** — blocks passive copying, forces original explanations in user's own words |
-
-## 🛠️ Tech Stack
+| **session History** | Ensures **Session History** — User can see session history with mastary report |
+| **Authenticated Source Providation** | Provides **trusted sources** — for correcting their misconception |
+| **Streak Tracking** | Tracks **Daily streaks** — along with total active days |
+| **MultiPersona**| Different **AI student models** - for deep understanding and surface understanding|
 
 ### 🎨 Frontend
 
