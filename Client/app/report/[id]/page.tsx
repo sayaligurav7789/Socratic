@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "motion/react"
+
 import {
     Target,
     Zap,
@@ -27,6 +28,7 @@ import {
 import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
 import { DotPattern } from "@/components/ui/dot-pattern"
+import Logo from "@/components/logo"
 
 export default function ReportPage() {
     const params = useParams()
@@ -290,6 +292,7 @@ export default function ReportPage() {
     if (isLoading || !report || !session) {
         return (
             <div className="min-h-screen bg-[#F5F3EE] dark:bg-[#0D0D18] flex flex-col items-center justify-center p-6 text-center">
+
                 <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
@@ -327,7 +330,7 @@ export default function ReportPage() {
     return (
         <div className="relative min-h-screen bg-[#F5F3EE] dark:bg-[#0D0D18] text-[#1A1A2E] dark:text-[#EEEEFF] selection:bg-[#00897B]/20">
 
-
+            <Logo />
             <div ref={reportRef} className="relative z-10 mx-auto max-w-4xl px-6 py-20 lg:py-32 overflow-hidden">
 
                 {/* 1. Opening Score Card */}
@@ -478,7 +481,7 @@ export default function ReportPage() {
                                                 ) : null}
                                             </div>
                                             <p className="text-[14px] text-[#4A4A68] dark:text-[#E8E8FF] mt-1 lg:max-w-xl leading-relaxed">
-                                            {notes.what_was_covered}
+                                                {notes.what_was_covered}
                                             </p>
 
                                             {notes.what_was_missed && (
@@ -491,12 +494,12 @@ export default function ReportPage() {
                                                 >
                                                     <Zap size={16} className="mt-0.5 shrink-0 text-[#F59E0B] dark:text-[#00897B]" />
                                                     <span>
-                                                        <span className="font-bold uppercase tracking-wider text-[11px] mr-1">Growth Area:</span> 
+                                                        <span className="font-bold uppercase tracking-wider text-[11px] mr-1">Growth Area:</span>
                                                         {notes.what_was_missed}
                                                     </span>
                                                 </div>
                                             )}
-                                            </div>
+                                        </div>
 
                                         <div className="flex items-center gap-2">
                                             {[1, 2, 3, 4, 5].map(step => (
@@ -721,13 +724,13 @@ export default function ReportPage() {
                                                 const typeIcon = res.type === 'video'
                                                     ? <PlayCircle size={14} className="text-[#5849E8]" />
                                                     : res.type === 'lesson'
-                                                    ? <GraduationCap size={14} className="text-[#00897B]" />
-                                                    : <FileText size={14} className="text-[#B45309]" />
+                                                        ? <GraduationCap size={14} className="text-[#00897B]" />
+                                                        : <FileText size={14} className="text-[#B45309]" />
                                                 const typeColor = res.type === 'video'
                                                     ? 'bg-[#F3F0FF] text-[#5849E8]'
                                                     : res.type === 'lesson'
-                                                    ? 'bg-[#E8F8F4] text-[#00695C]'
-                                                    : 'bg-[#FEF3C7] text-[#B45309]'
+                                                        ? 'bg-[#E8F8F4] text-[#00695C]'
+                                                        : 'bg-[#FEF3C7] text-[#B45309]'
                                                 return (
                                                     <a
                                                         key={rIdx}

@@ -5,6 +5,7 @@ import { ArrowRight, Brain, Clock, Plus, Loader2, PlayCircle, Flame, Trophy, Cal
 import { useUser } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import { BACKEND_URL } from "@/lib/config"
+import Logo from "@/components/logo"
 
 function getScoreStyles(score: number) {
     if (score >= 80) return { bg: "#E8F8F4", text: "#00695C", label: "Strong" }
@@ -56,6 +57,7 @@ export default function SessionsPage() {
 
     return (
         <div className="min-h-screen bg-[#F5F3EE] dark:bg-[#0D0D18] px-6 py-28" style={{ fontFamily: "var(--font-ui, 'DM Sans', sans-serif)" }}>
+            <Logo />
             <div className="mx-auto max-w-5xl">
 
                 {/* Header */}

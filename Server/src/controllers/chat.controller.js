@@ -186,10 +186,14 @@ export const streamChat = async (req, res) => {
         const userMessage = message?.trim() || "I shared a drawing for this topic.";
 
         // 1. Save user message to the session array and update last activity timestamp
-        session.messages.push({
+        const userMsgObj = {
             role: "user",
             clean_text: userMessage
-        });
+        };
+        if (drawing_image) {
+            userMsgObj.drawing_image = drawing_image;
+        }
+        session.messages.push(userMsgObj);
         session.lastMessageAt = new Date();
 
         // 2. Determine concepts & history state

@@ -5,6 +5,7 @@ import { useTheme } from "@/components/theme-provider"
 import { motion } from "motion/react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import Logo from "@/components/logo"
 import { InteractiveGridPattern } from "@/components/ui/interactive-grid-pattern"
 
 export default function ChoosePage() {
@@ -29,6 +30,7 @@ export default function ChoosePage() {
                 )}
                 squaresClassName={isDark ? "hover:fill-white/5 stroke-white/10" : "hover:fill-black/5 stroke-black/10"}
             />
+            <Logo/>
 
             <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -41,14 +43,14 @@ export default function ChoosePage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                     className="text-center text-[11px] font-medium tracking-[0.2em] uppercase mb-6"
-                    style={{ 
+                    style={{
                         color: isDark ? "#6B6B8A" : "#9999BB",
                         letterSpacing: "0.2em"
                     }}
                 >
                     Choose your student
                 </motion.p>
-                
+
                 <motion.h1
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -65,13 +67,13 @@ export default function ChoosePage() {
                 >
                     Who are you teaching today?
                 </motion.h1>
-                
+
                 <motion.p
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                     className="text-center mb-12"
-                    style={{ 
+                    style={{
                         color: isDark ? "#6B6B8A" : "#8080A0",
                         fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
                         fontSize: "0.95rem",
@@ -103,7 +105,7 @@ export default function ChoosePage() {
                             backdropFilter: "blur(10px)"
                         }}
                     >
-        
+
                         {/* Hover light effect */}
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -111,14 +113,14 @@ export default function ChoosePage() {
                             transition={{ duration: 0.3 }}
                             className="absolute inset-0 pointer-events-none"
                         >
-                            <div 
+                            <div
                                 className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00897B] to-transparent opacity-30 blur-xl"
                                 style={{
                                     transform: "translateX(-100%)",
                                     animation: "shimmer 1.5s infinite"
                                 }}
                             />
-                            <div 
+                            <div
                                 className="absolute inset-0 rounded-2xl"
                                 style={{
                                     background: "radial-gradient(circle at 50% 0%, rgba(0,137,123,0.2), transparent 70%)"
@@ -132,7 +134,7 @@ export default function ChoosePage() {
                                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                                 className="relative"
                             >
-                                <motion.div 
+                                <motion.div
                                     className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"
                                     style={{ background: "#00897B" }}
                                     whileHover={{ scale: 1.2 }}
@@ -169,7 +171,7 @@ export default function ChoosePage() {
                         </p>
                         <p
                             className="text-sm leading-relaxed relative z-10"
-                            style={{ 
+                            style={{
                                 color: isDark ? "#8080AA" : "#606080",
                                 fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
                                 lineHeight: 1.6
@@ -232,14 +234,14 @@ export default function ChoosePage() {
                             transition={{ duration: 0.3 }}
                             className="absolute inset-0 pointer-events-none"
                         >
-                            <div 
+                            <div
                                 className="absolute inset-0 bg-gradient-to-r from-transparent via-[#7C3AED] to-transparent opacity-30 blur-xl"
                                 style={{
                                     transform: "translateX(-100%)",
                                     animation: "shimmer 1.5s infinite"
                                 }}
                             />
-                            <div 
+                            <div
                                 className="absolute inset-0 rounded-2xl"
                                 style={{
                                     background: "radial-gradient(circle at 50% 0%, rgba(124,58,237,0.2), transparent 70%)"
@@ -253,7 +255,7 @@ export default function ChoosePage() {
                                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
                                 className="relative"
                             >
-                                <motion.div 
+                                <motion.div
                                     className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"
                                     style={{ background: "#7C3AED" }}
                                     whileHover={{ scale: 1.2 }}
@@ -290,7 +292,7 @@ export default function ChoosePage() {
                         </p>
                         <p
                             className="text-sm leading-relaxed relative z-10"
-                            style={{ 
+                            style={{
                                 color: isDark ? "#8080AA" : "#606080",
                                 fontFamily: "var(--font-ui, 'DM Sans', sans-serif)",
                                 lineHeight: 1.6

@@ -9,6 +9,7 @@ import { useTheme } from "@/components/theme-provider"
 import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
 import { User } from "lucide-react"
+import Logo from "@/components/logo"
 
 type BrowserSpeechRecognition = {
     continuous: boolean;
@@ -30,9 +31,9 @@ export default function SessionPage() {
     const [mounted, setMounted] = useState(false)
 
     useEffect(() => {
-      setMounted(true)
+        setMounted(true)
     }, [])
-    
+
     const params = useParams()
     const { id } = params
 
@@ -77,7 +78,7 @@ export default function SessionPage() {
     const [shapeText, setShapeText] = useState("")
     const [isCanvasCollapsed, setIsCanvasCollapsed] = useState(true)
     const router = useRouter()
-    
+
     const handleComposerPaste = async () => {
         if (!id) return;
 
@@ -128,8 +129,8 @@ export default function SessionPage() {
         if (!ctx) return;
 
         // Save existing drawing before resize
-        const existingData = canvas.width > 0 && canvas.height > 0 
-            ? ctx.getImageData(0, 0, canvas.width, canvas.height) 
+        const existingData = canvas.width > 0 && canvas.height > 0
+            ? ctx.getImageData(0, 0, canvas.width, canvas.height)
             : null;
 
         // Set canvas dimensions to match container exactly
@@ -142,7 +143,7 @@ export default function SessionPage() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        
+
         // Make canvas transparent instead of filling it, so background dots show
         // Do not use fillRect here.
 
@@ -150,7 +151,7 @@ export default function SessionPage() {
         if (existingData) {
             ctx.putImageData(existingData, 0, 0);
         }
-        
+
         canvasCtxRef.current = ctx;
     };
 
@@ -166,9 +167,9 @@ export default function SessionPage() {
         const resizeObserver = new ResizeObserver(() => {
             setupCanvas();
         });
-        
+
         resizeObserver.observe(container);
-        
+
         return () => {
             resizeObserver.disconnect();
         };
@@ -180,9 +181,9 @@ export default function SessionPage() {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
-        
+
         if (!mounted) return null
-        
+
         return {
             x: (event.clientX - rect.left) * scaleX,
             y: (event.clientY - rect.top) * scaleY
@@ -568,7 +569,8 @@ export default function SessionPage() {
                     if (data.data.messages && data.data.messages.length > 0) {
                         setMessages(data.data.messages.map((m: any) => ({
                             role: m.role,
-                            content: m.clean_text || m.content
+                            content: m.clean_text || m.content,
+                            drawingImage: m.drawing_image || null
                         })));
                     } else {
                         setMessages([{
@@ -883,15 +885,14 @@ export default function SessionPage() {
             <button
                 type="button"
                 onClick={() => setDrawTool(tool)}
-                className={`px-3.5 py-[7px] rounded-xl text-[12px] font-semibold border transition-all duration-200 ${
-                    isActive
+                className={`px-3.5 py-[7px] rounded-xl text-[12px] font-semibold border transition-all duration-200 ${isActive
                         ? isEraser
                             ? "bg-amber-50 text-amber-700 border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]"
                             : isText
                                 ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-[0_0_0_1px_rgba(88,73,232,0.15)]"
                                 : "bg-teal-50 text-teal-700 border-teal-300 shadow-[0_0_0_1px_rgba(0,137,123,0.15)]"
                         : "bg-white/80 dark:bg-white/[0.04] text-[#5A5A78] dark:text-[#9898BB] border-[#E8E5DE] dark:border-white/10 hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20"
-                }`}
+                    }`}
             >
                 {label}
             </button>
@@ -908,7 +909,8 @@ export default function SessionPage() {
                     : "linear-gradient(145deg, #F8F6F1 0%, #F0EDE6 40%, #EBE8E0 100%)",
             }}
         >
-            {/* Ambient gradient orbs behind everything */}
+            <Logo/>
+                {/* Ambient gradient orbs behind everything */}
             <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
                 <div className="absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-[#00897B] opacity-[0.07] blur-[140px]" />
                 <div className="absolute right-[-10%] top-[30%] h-[420px] w-[420px] rounded-full bg-[#5849E8] opacity-[0.06] blur-[130px]" />
@@ -1002,27 +1004,32 @@ export default function SessionPage() {
                                         <div key={idx} className="flex items-start justify-end gap-3 w-full">
                                             {/* Message */}
                                             <div
-                                                className="rounded-[22px] rounded-br-[8px] px-5 py-3.5 text-[14.5px] text-white shadow-lg max-w-[75%] whitespace-pre-wrap leading-relaxed"
+                                                className="rounded-[22px] rounded-br-[8px] px-5 py-3.5 text-[14.5px] text-white shadow-lg max-w-[75%] whitespace-pre-wrap leading-relaxed flex flex-col gap-2"
                                                 style={{
-                                                background: "linear-gradient(135deg, #6C5CE7 0%, #5849E8 50%, #4A3DD0 100%)",
-                                                boxShadow: "0 4px 20px rgba(88,73,232,0.25)",
+                                                    background: "linear-gradient(135deg, #6C5CE7 0%, #5849E8 50%, #4A3DD0 100%)",
+                                                    boxShadow: "0 4px 20px rgba(88,73,232,0.25)",
                                                 }}
                                             >
-                                                {msg.content}
+                                                {msg.drawingImage && (
+                                                    <div className="rounded-xl overflow-hidden border border-white/20 bg-[#F7F6F2] dark:bg-[#13131F] p-1">
+                                                        <img src={msg.drawingImage} alt="User drawing" className="w-full h-auto rounded-lg" />
+                                                    </div>
+                                                )}
+                                                <div>{msg.content}</div>
                                             </div>
 
                                             {/* 👤 USER ICON */}
                                             <div
                                                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
                                                 style={{
-                                                background: "linear-gradient(145deg, #EEF0FF 0%, #DDE1FF 50%, #C7CCFF 100%)",
-                                                boxShadow: "0 2px 12px rgba(88,73,232,0.2), inset 0 1px 2px rgba(255,255,255,0.6)",
+                                                    background: "linear-gradient(145deg, #EEF0FF 0%, #DDE1FF 50%, #C7CCFF 100%)",
+                                                    boxShadow: "0 2px 12px rgba(88,73,232,0.2), inset 0 1px 2px rgba(255,255,255,0.6)",
                                                 }}
                                             >
                                                 <User size={16} className="text-[#5849E8]" />
                                             </div>
 
-                                            </div>
+                                        </div>
                                     )
                                 } else {
                                     return (
@@ -1223,108 +1230,108 @@ export default function SessionPage() {
 
                 {/* ═══════════════ Middle Partition - Drawing Canvas (PERFECT FIT) ═══════════════ */}
                 {!isCanvasCollapsed && (
-                <div
-                    className="lg:basis-[33%] lg:max-w-[33%] rounded-[2rem] p-4 sm:p-5 flex flex-col min-h-0 transition-all duration-500 ease-out animate-in slide-in-from-left-4 fade-in duration-300"
-                    style={{
-                        background: isDark
-                            ? "rgba(15, 15, 28, 0.75)"
-                            : "rgba(255, 255, 255, 0.55)",
-                        backdropFilter: "blur(30px) saturate(1.4)",
-                        WebkitBackdropFilter: "blur(30px) saturate(1.4)",
-                        border: isDark
-                            ? "1px solid rgba(255,255,255,0.12)"
-                            : "1px solid rgba(255,255,255,0.7)",
-                        boxShadow: isDark
-                            ? "0 8px 32px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
-                            : "0 8px 32px rgba(26,26,46,0.05)",
-                    }}
-                >
-                    <div className="flex items-center justify-between mb-3.5 px-1">
-                        <h2 className="text-[15px] font-bold text-[#1A1A2E] dark:text-[#EDEDFF] tracking-tight">Teach With Drawing</h2>
-                        <span className="text-[11px] font-medium text-[#B0B0C8] dark:text-[#5050AA] uppercase tracking-wider">Canvas</span>
-                    </div>
-
-                    <div className="mb-3 flex items-center gap-1.5 flex-wrap">
-                        {toolBtn("pen", "Pen")}
-                        {toolBtn("eraser", "Eraser")}
-                        {toolBtn("rectangle", "Rect")}
-                        {toolBtn("circle", "Circle")}
-                        {toolBtn("line", "Line")}
-                        {toolBtn("triangle", "Tri")}
-                        {toolBtn("text", "Text")}
-                        <div className="ml-1 h-8 w-px bg-[#E8E5DE] dark:bg-white/10" />
-                        <input
-                            type="color"
-                            value={brushColor}
-                            onChange={(e) => setBrushColor(e.target.value)}
-                            className="h-8 w-9 rounded-lg border border-[#E8E5DE] dark:border-white/10 bg-white dark:bg-white/[0.04] p-0.5 cursor-pointer"
-                            title="Brush color"
-                        />
-                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white/80 dark:bg-white/[0.04]">
-                            <span className="text-[11px] font-medium text-[#8A8AA8] dark:text-[#6868AA]">Size</span>
-                            <input
-                                type="range"
-                                min={2}
-                                max={16}
-                                value={brushSize}
-                                onChange={(e) => setBrushSize(Number(e.target.value))}
-                                className="w-16 accent-[#00897B]"
-                            />
-                        </div>
-                        {drawTool === "text" && (
-                            <input
-                                type="text"
-                                value={shapeText}
-                                onChange={(e) => setShapeText(e.target.value)}
-                                placeholder="Text to place"
-                                className="h-9 w-36 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white dark:bg-white/[0.04] px-3 text-[12px] text-[#1A1A2E] dark:text-[#E8E8FF] placeholder-[#B0B0C8] dark:placeholder-[#5050AA] focus:outline-none focus:ring-2 focus:ring-[#00897B]/25 transition"
-                            />
-                        )}
-                    </div>
-
-                    {/* Canvas Container - Fills available space */}
                     <div
-                        ref={canvasContainerRef}
-                        className="flex-1 rounded-2xl border-2 border-dashed border-[#D8D4CC] dark:border-white/10 bg-[#F7F6F2] dark:bg-[#13131F] relative overflow-hidden"
+                        className="lg:basis-[33%] lg:max-w-[33%] rounded-[2rem] p-4 sm:p-5 flex flex-col min-h-0 transition-all duration-500 ease-out animate-in slide-in-from-left-4 fade-in duration-300"
                         style={{
-                            minHeight: "280px",
-                            boxShadow: "inset 0 2px 8px rgba(0,0,0,0.03)",
+                            background: isDark
+                                ? "rgba(15, 15, 28, 0.75)"
+                                : "rgba(255, 255, 255, 0.55)",
+                            backdropFilter: "blur(30px) saturate(1.4)",
+                            WebkitBackdropFilter: "blur(30px) saturate(1.4)",
+                            border: isDark
+                                ? "1px solid rgba(255,255,255,0.12)"
+                                : "1px solid rgba(255,255,255,0.7)",
+                            boxShadow: isDark
+                                ? "0 8px 32px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
+                                : "0 8px 32px rgba(26,26,46,0.05)",
                         }}
                     >
-                        <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: "radial-gradient(circle, #D0CCC4 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
-                        <canvas
-                            ref={canvasRef}
-                            className="absolute inset-0 w-full h-full touch-none"
-                            style={{ display: "block" }}
-                            onPointerDown={startDrawing}
-                            onPointerMove={drawLine}
-                            onPointerUp={(e) => stopDrawing(e)}
-                            onPointerLeave={stopDrawing}
-                        />
-                    </div>
+                        <div className="flex items-center justify-between mb-3.5 px-1">
+                            <h2 className="text-[15px] font-bold text-[#1A1A2E] dark:text-[#EDEDFF] tracking-tight">Teach With Drawing</h2>
+                            <span className="text-[11px] font-medium text-[#B0B0C8] dark:text-[#5050AA] uppercase tracking-wider">Canvas</span>
+                        </div>
 
-                    <div className="mt-3 flex items-center justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={clearCanvas}
-                            className="px-4 py-2.5 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white/80 dark:bg-white/[0.04] text-[12px] font-semibold text-[#7A7A98] dark:text-[#9898BB] hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20 transition-all duration-200 shadow-sm"
-                        >
-                            Clear
-                        </button>
-                        <button
-                            type="button"
-                            onClick={sendDrawing}
-                            disabled={isStreaming}
-                            className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-white transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40"
+                        <div className="mb-3 flex items-center gap-1.5 flex-wrap">
+                            {toolBtn("pen", "Pen")}
+                            {toolBtn("eraser", "Eraser")}
+                            {toolBtn("rectangle", "Rect")}
+                            {toolBtn("circle", "Circle")}
+                            {toolBtn("line", "Line")}
+                            {toolBtn("triangle", "Tri")}
+                            {toolBtn("text", "Text")}
+                            <div className="ml-1 h-8 w-px bg-[#E8E5DE] dark:bg-white/10" />
+                            <input
+                                type="color"
+                                value={brushColor}
+                                onChange={(e) => setBrushColor(e.target.value)}
+                                className="h-8 w-9 rounded-lg border border-[#E8E5DE] dark:border-white/10 bg-white dark:bg-white/[0.04] p-0.5 cursor-pointer"
+                                title="Brush color"
+                            />
+                            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white/80 dark:bg-white/[0.04]">
+                                <span className="text-[11px] font-medium text-[#8A8AA8] dark:text-[#6868AA]">Size</span>
+                                <input
+                                    type="range"
+                                    min={2}
+                                    max={16}
+                                    value={brushSize}
+                                    onChange={(e) => setBrushSize(Number(e.target.value))}
+                                    className="w-16 accent-[#00897B]"
+                                />
+                            </div>
+                            {drawTool === "text" && (
+                                <input
+                                    type="text"
+                                    value={shapeText}
+                                    onChange={(e) => setShapeText(e.target.value)}
+                                    placeholder="Text to place"
+                                    className="h-9 w-36 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white dark:bg-white/[0.04] px-3 text-[12px] text-[#1A1A2E] dark:text-[#E8E8FF] placeholder-[#B0B0C8] dark:placeholder-[#5050AA] focus:outline-none focus:ring-2 focus:ring-[#00897B]/25 transition"
+                                />
+                            )}
+                        </div>
+
+                        {/* Canvas Container - Fills available space */}
+                        <div
+                            ref={canvasContainerRef}
+                            className="flex-1 rounded-2xl border-2 border-dashed border-[#D8D4CC] dark:border-white/10 bg-[#F7F6F2] dark:bg-[#13131F] relative overflow-hidden"
                             style={{
-                                background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
-                                boxShadow: "0 4px 16px rgba(0,137,123,0.3)",
+                                minHeight: "280px",
+                                boxShadow: "inset 0 2px 8px rgba(0,0,0,0.03)",
                             }}
                         >
-                            Send Drawing
-                        </button>
+                            <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: "radial-gradient(circle, #D0CCC4 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
+                            <canvas
+                                ref={canvasRef}
+                                className="absolute inset-0 w-full h-full touch-none"
+                                style={{ display: "block" }}
+                                onPointerDown={startDrawing}
+                                onPointerMove={drawLine}
+                                onPointerUp={(e) => stopDrawing(e)}
+                                onPointerLeave={stopDrawing}
+                            />
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={clearCanvas}
+                                className="px-4 py-2.5 rounded-xl border border-[#E8E5DE] dark:border-white/10 bg-white/80 dark:bg-white/[0.04] text-[12px] font-semibold text-[#7A7A98] dark:text-[#9898BB] hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20 transition-all duration-200 shadow-sm"
+                            >
+                                Clear
+                            </button>
+                            <button
+                                type="button"
+                                onClick={sendDrawing}
+                                disabled={isStreaming}
+                                className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-white transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40"
+                                style={{
+                                    background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
+                                    boxShadow: "0 4px 16px rgba(0,137,123,0.3)",
+                                }}
+                            >
+                                Send Drawing
+                            </button>
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* ═══════════════ Right Partition ═══════════════ */}
@@ -1336,7 +1343,7 @@ export default function SessionPage() {
                         style={{
                             background: "linear-gradient(145deg, #12122A 0%, #1A1A2E 50%, #151530 100%)",
                             border: isDark ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(255,255,255,0.05)",
-                            boxShadow: isDark 
+                            boxShadow: isDark
                                 ? "0 8px 32px rgba(0,0,0,0.3), 0 0 30px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)"
                                 : "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)",
                         }}

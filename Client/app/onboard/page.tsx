@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { useTheme } from "@/components/theme-provider"
 import { BACKEND_URL } from "@/lib/config"
+import Logo from "@/components/logo"
 
 const Onboard = () => {
     const router = useRouter()
@@ -141,7 +142,7 @@ const Onboard = () => {
                 )}
                 squaresClassName={isDark ? "hover:fill-white/5 stroke-white/10" : "hover:fill-black/5 stroke-black/10"}
             />
-
+            <Logo/>
             {/* Centered glassmorphism card */}
             <div className="relative z-10 flex min-h-screen items-center justify-center px-6">
                 <div

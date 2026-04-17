@@ -1,5 +1,5 @@
 "use client"
-
+import Logo from "@/components/logo"
 import Link from "next/link"
 import {
   Brain, BookOpen, Sparkles, Lightbulb, BarChart2, MessageCircle,
@@ -124,6 +124,7 @@ export default function Home() {
       <Suspense fallback={null}>
         <AuthToast />
       </Suspense>
+      <Logo />
 
       {/* ── HERO ──────────────────────────────────────────────────── */}
       <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 pt-32 pb-24 text-center">
@@ -217,11 +218,10 @@ export default function Home() {
                   <div className="mr-2.5 mt-1 flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-[#00897B] to-[#00695C] flex items-center justify-center text-white text-[10px] font-bold">M</div>
                 )}
                 <div
-                  className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
-                    msg.role === "mia"
+                  className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed ${msg.role === "mia"
                       ? "bg-[#F7F6F2] dark:bg-white/6 text-[#1A1A2E] dark:text-[#DDDDEF] rounded-tl-sm border border-[#E2DFD8] dark:border-white/6"
                       : "bg-[rgba(0,137,123,0.12)] dark:bg-[rgba(0,191,165,0.1)] text-[#00695C] dark:text-[#00BFA5] rounded-tr-sm border border-[rgba(0,137,123,0.2)] dark:border-[rgba(0,191,165,0.15)]"
-                  }`}
+                    }`}
                 >
                   {msg.text}
                 </div>
@@ -301,7 +301,7 @@ export default function Home() {
                 <div
                   className="mb-4 flex h-9 w-9 items-center justify-center rounded-full transition-transform group-hover:scale-110"
                   style={{ background: f.lightBg, color: f.color }}
-                > 
+                >
                   {f.icon}
                 </div>
                 <h3 className="mb-1.5 text-[15px] font-semibold text-[#1A1A2E] dark:text-[#DDDDEF]">{f.title}</h3>
