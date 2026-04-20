@@ -6,9 +6,8 @@ export default function Logo() {
             <Image
                 src="/logo.svg"
                 alt="Logo"
-                width={200}
-                height={200}
-                
+                width={150}
+                height={150}
                 priority
             />
         </div>
