@@ -7,6 +7,7 @@ const pdf = require('pdf-parse');
 import { call_llama_8b } from '../utils/groq.js';
 import { call_flash } from '../utils/gemini.js';
 import { languageName, languageDirective } from '../utils/languages.js';
+import { computeAxisScores } from '../utils/scoring.js';
 
 export const createSession = async (req, res) => {
     try {
@@ -387,6 +388,9 @@ export const generateReport = async (req, res) => {
         if (misconceptionResult === 'missed') baseScore -= 5;
         const finalScore = Math.min(100, Math.max(0, Math.round(baseScore)));
 
+        // 1b. Compute dual-axis scores (theoretical vs practical) from per-turn evidence.
+        const axisScores = computeAxisScores(session);
+
         // 2. Format data for Gemini
         const conceptStatus = session.conceptTree.map(c => {
             const depth = session.depthScores.get(c.id) || 0;
@@ -454,6 +458,13 @@ RESPONSE RULES:
             console.error('Report JSON parse failed. Raw response:', cleaned.slice(0, 500));
             throw new Error('Failed to parse AI report response as JSON');
         }
+
+        // Attach dual-axis scoring (computed deterministically from per-turn evidence)
+        reportData.theoretical_score = axisScores.overallTheoretical;
+        reportData.practical_score = axisScores.overallPractical;
+        reportData.gap = axisScores.gap;
+        reportData.gap_label = axisScores.gapLabel;
+        reportData.axis_scores = axisScores.perConcept;
 
         reportData.paste_behavior = {
             paste_count: typeof reportData?.paste_behavior?.paste_count === 'number'
