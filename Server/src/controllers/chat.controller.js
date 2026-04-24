@@ -3,10 +3,14 @@ import { call_llama_70b } from '../utils/groq.js';
 import mongoose from 'mongoose';
 import { synthesizeSpeech } from '../utils/tts.js';
 import { describe_drawing_from_data_url } from '../utils/gemini.js';
+import { languageName, languageDirective } from '../utils/languages.js';
 
 // --- Build Mia's System Prompt (deep understanding) ---
-function buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered }) {
-    return `You are Mia, a curious and slightly confused student who is learning about ${topic} for the very first time. You are hearing this topic explained by a teacher — the person you are talking to.
+function buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, languageName: langName }) {
+    const langLine = langName && langName !== 'English'
+        ? `\n\nLANGUAGE: You must speak only in ${langName}. Every word of your visible dialogue (including reactions, questions, summaries, and any quoted phrases) must be written in ${langName}. Do NOT mix in English. The metadata JSON keys and values like "concept_covered", "mia_state" stay in English, but anything the user reads is ${langName}.`
+        : '';
+    return `You are Mia, a curious and slightly confused student who is learning about ${topic} for the very first time. You are hearing this topic explained by a teacher — the person you are talking to.${langLine}
 
 You are NOT an assistant. You are NOT a tutor. You do NOT have background knowledge. You only know what the person has told you in this conversation so far.
 
@@ -73,8 +77,11 @@ IMPORTANT: Never mention the metadata. Never reference it. Output it silently af
 }
 
 // --- Build Leo's System Prompt (surface understanding) ---
-function buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered }) {
-    return `You are Leo, a relaxed and practical student who just wants to get a solid surface-level grasp of ${topic}. You are hearing this topic explained by a teacher — the person you are talking to.
+function buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, languageName: langName }) {
+    const langLine = langName && langName !== 'English'
+        ? `\n\nLANGUAGE: You must speak only in ${langName}. Every word of your visible dialogue (including reactions, questions, and summaries) must be written in ${langName}. Do NOT mix in English. The metadata JSON keys and values like "concept_covered", "mia_state" stay in English, but anything the user reads is ${langName}.`
+        : '';
+    return `You are Leo, a relaxed and practical student who just wants to get a solid surface-level grasp of ${topic}. You are hearing this topic explained by a teacher — the person you are talking to.${langLine}
 
 You are NOT an assistant. You are NOT a tutor. You do NOT have prior knowledge of this topic. You only know what the person has told you in this conversation so far.
 
@@ -136,11 +143,11 @@ IMPORTANT: Never mention the metadata. Never reference it. Output it silently af
 }
 
 // --- Route to correct persona prompt ---
-function buildSystemPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, persona }) {
+function buildSystemPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, persona, languageName: langName }) {
     if (persona === 'leo') {
-        return buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered });
+        return buildLeoPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, languageName: langName });
     }
-    return buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered });
+    return buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, languageName: langName });
 }
 
 // --- Parse Metadata String ---
@@ -205,6 +212,7 @@ export const streamChat = async (req, res) => {
         if (session.misconception_triggered_at === undefined) session.misconception_triggered_at = null;
         if (session.misconception_window_open === undefined) session.misconception_window_open = false;
 
+        const sessionLanguageName = session.languageName || languageName(session.language || 'en');
         const systemPrompt = buildSystemPrompt({
             topic: session.topic,
             concepts: session.conceptTree,
@@ -212,7 +220,8 @@ export const streamChat = async (req, res) => {
             coveredConcepts,
             misconception: session.misconception,
             misconceptionTriggered: session.misconception_triggered_at !== null,
-            persona: session.persona || 'mia'
+            persona: session.persona || 'mia',
+            languageName: sessionLanguageName,
         });
 
         // Build cleanly formatted history for the model

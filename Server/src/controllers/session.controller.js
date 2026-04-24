@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
 import { call_llama_8b } from '../utils/groq.js';
 import { call_flash } from '../utils/gemini.js';
+import { languageName, languageDirective } from '../utils/languages.js';
 
 export const createSession = async (req, res) => {
     try {
@@ -81,8 +82,11 @@ export const createSession = async (req, res) => {
 
 export const initSession = async (req, res) => {
     try {
-        const { topic, user_id, source_url, persona } = req.body;
+        const { topic, user_id, source_url, persona, language } = req.body;
         const file = req.file;
+        const langCode = (language || 'en').toLowerCase();
+        const langName = languageName(langCode);
+        const langDirective = languageDirective(langCode);
 
         if (!topic || !user_id) {
             return res.status(400).json({
@@ -235,7 +239,7 @@ ${source_text ? `Text: ${source_text}` : ''}`;
                 }
             };
         } else {
-            const geminiSystemPrompt = `You are a curriculum designer. When given a topic, return a JSON object with exactly 5 to 8 sub-concepts a person must understand to demonstrate genuine mastery of that topic. Return ONLY valid JSON, no explanation, no markdown fences.`;
+            const geminiSystemPrompt = `You are a curriculum designer. When given a topic, return a JSON object with exactly 5 to 8 sub-concepts a person must understand to demonstrate genuine mastery of that topic. Return ONLY valid JSON, no explanation, no markdown fences.\n${langDirective}`;
 
             const geminiUserPrompt = `Topic: ${topic}\n${source_text ? `Additional context from user's notes: ${source_text}` : ''}
     
@@ -279,6 +283,8 @@ Return this exact shape:
             messages: [],
             blindSpots: [],
             persona: persona === 'leo' ? 'leo' : 'mia',
+            language: langCode,
+            languageName: langName,
         });
 
         user.sessions.push(newSession._id);
@@ -389,7 +395,9 @@ export const generateReport = async (req, res) => {
 
         const chatLog = session.messages.map(m => `[${m.role}] ${m.clean_text}`).join('\n');
 
+        const reportLangDirective = languageDirective(session.language || 'en');
         const prompt = `You are generating a post-session mastery report for a teaching simulation app.
+${reportLangDirective}
 The user just finished teaching the topic: "${session.topic}" to an AI student named Mia.
 
 SITUATION:
@@ -482,6 +490,7 @@ RESPONSE RULES:
         if (conceptGaps.length > 0) {
             try {
                 const resourcePrompt = `You are an academic resource curator for a learning app.
+${reportLangDirective}
 
 A student just finished a teaching session on: "${session.topic}"
 
