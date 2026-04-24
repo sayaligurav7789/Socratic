@@ -14,9 +14,12 @@ export interface Concept {
 export interface RadarChartProps {
     concepts: Concept[];
     depthScores: Record<string, number>;
+    theoreticalScores?: Record<string, number>; // 0-100, takes priority for the solid overlay
+    practicalScores?: Record<string, number>;   // 0-100, draws the dashed overlay
 }
 
-export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
+export default function RadarChart({ concepts, depthScores, theoreticalScores, practicalScores }: RadarChartProps) {
+    const dualMode = !!(theoreticalScores && practicalScores);
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
     const { theme } = useTheme();
@@ -170,35 +173,64 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
                 .call(wrapText, 128); // Wider wrap keeps larger labels readable
         });
 
-        const getPolygonPoints = (scores: Record<string, number>) => {
+        const getPolygonPoints = (scores: Record<string, number>, mode: 'depth' | 'percent' = 'depth') => {
             return axes.map(axis => {
-                const depth = scores[axis.id] ?? 0;
-                const ratio = depthScale(depth);
+                const raw = scores[axis.id] ?? 0;
+                const ratio = mode === 'percent'
+                    ? Math.max(0, Math.min(1, raw / 100))
+                    : depthScale(raw);
                 const x = Math.cos(axis.angle) * ratio * maxRadius;
                 const y = Math.sin(axis.angle) * ratio * maxRadius;
                 return `${x},${y}`;
             }).join(" ");
         };
 
-        // Step 5 — Draw the Filled Polygon
-        const initialPoints = getPolygonPoints({});
-        const actualPoints = getPolygonPoints(depthScores);
+        // Step 5 — Draw the Filled Polygon(s)
+        if (dualMode) {
+            // Theoretical overlay (solid teal)
+            const theoInitial = getPolygonPoints({}, 'percent');
+            const theoActual = getPolygonPoints(theoreticalScores!, 'percent');
+            const theoPolygon = g.append("polygon")
+                .attr("class", "filled-polygon theoretical-polygon")
+                .attr("points", theoInitial)
+                .attr("fill", "rgba(0, 137, 123, 0.18)")
+                .attr("stroke", "rgba(0, 137, 123, 0.9)")
+                .attr("stroke-width", 2)
+                .attr("stroke-linejoin", "round")
+                .style("filter", "url(#glow)");
+            theoPolygon.transition().duration(1000).ease(d3.easeCubicOut).attr("points", theoActual);
 
-        const filledPolygon = g.append("polygon")
-            .attr("class", "filled-polygon")
-            .attr("points", initialPoints)
-            .attr("fill", "rgba(0, 137, 123, 0.15)") // Brand #00897B
-            .attr("stroke", "rgba(0, 137, 123, 0.8)") 
-            .attr("stroke-width", 2)
-            .attr("stroke-linejoin", "round")
-            .style("filter", "url(#glow)");
+            // Practical overlay (dashed amber)
+            const pracInitial = getPolygonPoints({}, 'percent');
+            const pracActual = getPolygonPoints(practicalScores!, 'percent');
+            const pracPolygon = g.append("polygon")
+                .attr("class", "practical-polygon")
+                .attr("points", pracInitial)
+                .attr("fill", "rgba(245, 158, 11, 0.10)")
+                .attr("stroke", "rgba(245, 158, 11, 0.95)")
+                .attr("stroke-width", 2)
+                .attr("stroke-dasharray", "6,4")
+                .attr("stroke-linejoin", "round");
+            pracPolygon.transition().duration(1000).delay(200).ease(d3.easeCubicOut).attr("points", pracActual);
+        } else {
+            const initialPoints = getPolygonPoints({});
+            const actualPoints = getPolygonPoints(depthScores);
 
-        // Initial entry animation
-        filledPolygon
-            .transition()
-            .duration(1000)
-            .ease(d3.easeCubicOut)
-            .attr("points", actualPoints);
+            const filledPolygon = g.append("polygon")
+                .attr("class", "filled-polygon")
+                .attr("points", initialPoints)
+                .attr("fill", "rgba(0, 137, 123, 0.15)")
+                .attr("stroke", "rgba(0, 137, 123, 0.8)")
+                .attr("stroke-width", 2)
+                .attr("stroke-linejoin", "round")
+                .style("filter", "url(#glow)");
+
+            filledPolygon
+                .transition()
+                .duration(1000)
+                .ease(d3.easeCubicOut)
+                .attr("points", actualPoints);
+        }
 
         // Highlight endpoints that start with 4+
         axes.forEach(axis => {
@@ -226,10 +258,11 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
             }
         });
 
-    }, [concepts, isDark]);
+    }, [concepts, isDark, dualMode, theoreticalScores, practicalScores]);
 
     // Step 6 — The Update Function With Animation
     useEffect(() => {
+        if (dualMode) return; // dual-mode polygons are drawn once in the main effect
         if (!svgRef.current || !concepts || concepts.length === 0) return;
         
         const svg = d3.select(svgRef.current);
@@ -310,7 +343,7 @@ export default function RadarChart({ concepts, depthScores }: RadarChartProps) {
             }
         });
 
-    }, [depthScores, concepts, isDark]);
+    }, [depthScores, concepts, isDark, dualMode]);
 
     return (
         <div 
