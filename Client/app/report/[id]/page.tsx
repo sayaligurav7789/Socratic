@@ -67,7 +67,9 @@ export default function ReportPage() {
                     setSession(data.data)
 
                     const existingReport = data.data.report
-                    const needsRegeneration = !existingReport || !('studyResources' in (existingReport || {}))
+                    const needsRegeneration = !existingReport
+                        || !('studyResources' in (existingReport || {}))
+                        || !('axis_scores' in (existingReport || {}))
 
                     if (existingReport && !needsRegeneration) {
                         setReport(existingReport)
@@ -394,7 +396,30 @@ export default function ReportPage() {
                         <RadarChart
                             concepts={session.conceptTree}
                             depthScores={session.depthScores}
+                            theoreticalScores={
+                                report?.axis_scores
+                                    ? Object.fromEntries(report.axis_scores.map((a: any) => [a.id, a.theoretical]))
+                                    : undefined
+                            }
+                            practicalScores={
+                                report?.axis_scores
+                                    ? Object.fromEntries(report.axis_scores.map((a: any) => [a.id, a.practical]))
+                                    : undefined
+                            }
                         />
+                        {/* Legend (only in dual mode) */}
+                        {report?.axis_scores && (
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 rounded-full bg-white/70 dark:bg-white/[0.06] backdrop-blur border border-white/60 dark:border-white/10 text-[11px] font-bold tracking-wide">
+                                <span className="flex items-center gap-2 text-[#00695C] dark:text-[#4DB6AC]">
+                                    <span className="inline-block w-3 h-[2px] bg-[#00897B] dark:bg-[#4DB6AC]" />
+                                    {t("report.theoretical") || "THEORETICAL"}
+                                </span>
+                                <span className="flex items-center gap-2 text-[#B45309] dark:text-[#FBBF24]">
+                                    <span className="inline-block w-3 h-[2px] bg-[#F59E0B]" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B 60%, transparent 40%)', backgroundSize: '6px 2px' }} />
+                                    {t("report.practical") || "PRACTICAL"}
+                                </span>
+                            </div>
+                        )}
                         {/* Blind spot warning axis highlight if exists */}
                         {session.blindSpots?.some((b: any) => b.type === 'missed') && (
                             <div className="absolute top-6 right-6 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FEF3C7] dark:bg-[#F59E0B]/15 border border-[#F59E0B]/30 dark:border-[#F59E0B]/30 text-[#B45309] dark:text-[#FBBF24] text-[11px] font-bold">
@@ -421,6 +446,72 @@ export default function ReportPage() {
                                         " You're in the early stages of mastering this topic. Focus on explaining the foundational concepts clearly."}
                             </p>
                         </motion.div>
+
+                        {/* Dual-axis scores: Theoretical vs Practical */}
+                        {typeof report?.theoretical_score === 'number' && typeof report?.practical_score === 'number' && (
+                            <motion.div
+                                initial={{ y: 20, opacity: 0 }}
+                                whileInView={{ y: 0, opacity: 1 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.6, delay: 0.2 }}
+                                className="space-y-4"
+                            >
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white/50 dark:bg-white/[0.04] backdrop-blur-md p-5 rounded-3xl border border-[#00897B]/30 dark:border-[#4DB6AC]/25 shadow-sm">
+                                        <div className="text-[11px] font-bold text-[#00695C] dark:text-[#4DB6AC] uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            <span className="inline-block w-3 h-[2px] bg-[#00897B] dark:bg-[#4DB6AC]" />
+                                            {t("report.theoretical") || "Theoretical"}
+                                        </div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[28px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">{report.theoretical_score}</span>
+                                            <span className="text-[13px] text-[#9898AA] dark:text-[#7C7CA8]">/100</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white/50 dark:bg-white/[0.04] backdrop-blur-md p-5 rounded-3xl border border-[#F59E0B]/30 dark:border-[#F59E0B]/25 shadow-sm">
+                                        <div className="text-[11px] font-bold text-[#B45309] dark:text-[#FBBF24] uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            <span className="inline-block w-3 h-[2px]" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B 60%, transparent 40%)', backgroundSize: '6px 2px' }} />
+                                            {t("report.practical") || "Practical"}
+                                        </div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[28px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">{report.practical_score}</span>
+                                            <span className="text-[13px] text-[#9898AA] dark:text-[#7C7CA8]">/100</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Gap callout */}
+                                {report.gap_label && (() => {
+                                    const gap = report.gap || 0;
+                                    const isTheory = report.gap_label === 'theory_heavy';
+                                    const isPractice = report.gap_label === 'practice_heavy';
+                                    const isBalanced = report.gap_label === 'balanced';
+                                    const headline = isTheory
+                                        ? (t("report.gap.theoryHeavy.title") || "Theory-heavy understanding")
+                                        : isPractice
+                                            ? (t("report.gap.practiceHeavy.title") || "Intuitive but unexplained")
+                                            : (t("report.gap.balanced.title") || "Balanced understanding");
+                                    const body = isTheory
+                                        ? (t("report.gap.theoryHeavy.body") || "You can explain what the concepts are, but haven't yet shown how to apply them. Try a small worked example to close the gap.")
+                                        : isPractice
+                                            ? (t("report.gap.practiceHeavy.body") || "You can use the ideas in practice, but haven't fully articulated why they work. Try explaining the mechanism in your own words.")
+                                            : (t("report.gap.balanced.body") || "Your theory and practice scores track closely — a healthy sign of integrated understanding.");
+                                    const tone = isBalanced
+                                        ? "border-[#00897B]/30 dark:border-[#4DB6AC]/25 bg-[#E8F8F4]/70 dark:bg-[#00897B]/10 text-[#00695C] dark:text-[#4DB6AC]"
+                                        : "border-[#F59E0B]/30 dark:border-[#F59E0B]/25 bg-[#FEF3C7]/70 dark:bg-[#F59E0B]/10 text-[#B45309] dark:text-[#FBBF24]";
+                                    const sign = gap > 0 ? `+${gap}` : `${gap}`;
+                                    return (
+                                        <div className={`rounded-2xl border p-4 ${tone}`}>
+                                            <div className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider mb-1">
+                                                <span>{t("report.gap.label") || "Gap"}: {sign}</span>
+                                                <span className="opacity-50">·</span>
+                                                <span>{headline}</span>
+                                            </div>
+                                            <p className="text-[13px] leading-relaxed opacity-90">{body}</p>
+                                        </div>
+                                    );
+                                })()}
+                            </motion.div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-white/50 dark:bg-white/[0.04] backdrop-blur-md p-5 rounded-3xl border border-white/60 dark:border-white/10 shadow-sm">
