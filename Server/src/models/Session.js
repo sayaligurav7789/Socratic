@@ -47,6 +47,14 @@ const sessionSchema = new mongoose.Schema(
             of: Number,
             default: {},
         },
+        theoreticalEvidence: {
+            type: mongoose.Schema.Types.Mixed,
+            default: {},
+        },
+        practicalEvidence: {
+            type: mongoose.Schema.Types.Mixed,
+            default: {},
+        },
         blindSpots: [
             {
                 type: mongoose.Schema.Types.Mixed,
