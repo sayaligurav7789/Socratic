@@ -29,10 +29,12 @@ import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import Logo from "@/components/logo"
+import { useLanguage } from "@/lib/i18n"
 
 export default function ReportPage() {
     const params = useParams()
     const router = useRouter()
+    const { t } = useLanguage()
     const { id } = params
 
     const [session, setSession] = useState<any>(null)
@@ -343,7 +345,7 @@ export default function ReportPage() {
                         className="relative"
                     >
                         <div className="absolute inset-0 -z-10 bg-[#00897B] opacity-10 blur-[120px] rounded-full" />
-                        <h2 className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#4A4A68] mb-4">Mastery Score</h2>
+                        <h2 className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#4A4A68] mb-4">{t("report.score")}</h2>
                         <div className={`text-[120px] font-bold tracking-tight leading-none ${getScoreColor(report.overall_score)}`}>
                             {report.overall_score}
                         </div>
@@ -387,7 +389,7 @@ export default function ReportPage() {
                         whileInView={{ x: 0, opacity: 1 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8 }}
-                        className="bg-white/40 backdrop-blur-xl rounded-[2.5rem] border border-white/60 p-8 shadow-sm aspect-square flex items-center justify-center relative"
+                        className="bg-white/40 dark:bg-white/[0.04] backdrop-blur-xl rounded-[2.5rem] border border-white/60 dark:border-white/10 p-8 shadow-sm aspect-square flex items-center justify-center relative"
                     >
                         <RadarChart
                             concepts={session.conceptTree}
@@ -395,9 +397,9 @@ export default function ReportPage() {
                         />
                         {/* Blind spot warning axis highlight if exists */}
                         {session.blindSpots?.some((b: any) => b.type === 'missed') && (
-                            <div className="absolute top-6 right-6 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FEF3C7] border border-[#F59E0B]/30 text-[#B45309] text-[11px] font-bold">
+                            <div className="absolute top-6 right-6 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FEF3C7] dark:bg-[#F59E0B]/15 border border-[#F59E0B]/30 dark:border-[#F59E0B]/30 text-[#B45309] dark:text-[#FBBF24] text-[11px] font-bold">
                                 <AlertCircle size={14} />
-                                Blind Spot Detected
+                                {t("report.blindSpotDetected")}
                             </div>
                         )}
                     </motion.div>
@@ -409,11 +411,11 @@ export default function ReportPage() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.8 }}
                         >
-                            <h3 className="text-[28px] font-bold text-[#1A1A2E] leading-tight">
-                                Your Knowledge Radar for <span className="text-[#00897B]">{session.topic}</span>
+                            <h3 className="text-[28px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] leading-tight">
+                                Your Knowledge Radar for <span className="text-[#00897B] dark:text-[#4DB6AC]">{session.topic}</span>
                             </h3>
-                            <p className="text-[16px] text-[#4A4A68] mt-4 leading-relaxed">
-                                You covered <span className="font-bold text-[#1A1A2E]">{Object.values(session.depthScores).filter((s: any) => s >= 3).length} of {session.conceptTree.length}</span> core concepts at an adequate depth.
+                            <p className="text-[16px] text-[#4A4A68] dark:text-[#9898BB] mt-4 leading-relaxed">
+                                You covered <span className="font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">{Object.values(session.depthScores).filter((s: any) => s >= 3).length} of {session.conceptTree.length}</span> core concepts at an adequate depth.
                                 {report.overall_score >= 80 ? " You demonstrated exceptional mastery, connecting complex ideas effortlessly." :
                                     report.overall_score >= 60 ? " You have a solid grasp, but a few areas could benefit from more detailed explanation." :
                                         " You're in the early stages of mastering this topic. Focus on explaining the foundational concepts clearly."}
@@ -421,27 +423,27 @@ export default function ReportPage() {
                         </motion.div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white/50 backdrop-blur-md p-5 rounded-3xl border border-white/60 shadow-sm">
-                                <div className="text-[11px] font-bold text-[#9898AA] uppercase tracking-wider mb-1">Time Spent</div>
-                                <div className="text-[20px] font-bold text-[#1A1A2E]">{session.durationMinutes}m</div>
+                            <div className="bg-white/50 dark:bg-white/[0.04] backdrop-blur-md p-5 rounded-3xl border border-white/60 dark:border-white/10 shadow-sm">
+                                <div className="text-[11px] font-bold text-[#9898AA] dark:text-[#7C7CA8] uppercase tracking-wider mb-1">Time Spent</div>
+                                <div className="text-[20px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">{session.durationMinutes}m</div>
                             </div>
-                            <div className="bg-white/50 backdrop-blur-md p-5 rounded-3xl border border-white/60 shadow-sm">
-                                <div className="text-[11px] font-bold text-[#9898AA] uppercase tracking-wider mb-1">Explanations</div>
-                                <div className="text-[20px] font-bold text-[#1A1A2E]">{session.messages.filter((m: any) => m.role === 'user').length}</div>
+                            <div className="bg-white/50 dark:bg-white/[0.04] backdrop-blur-md p-5 rounded-3xl border border-white/60 dark:border-white/10 shadow-sm">
+                                <div className="text-[11px] font-bold text-[#9898AA] dark:text-[#7C7CA8] uppercase tracking-wider mb-1">Explanations</div>
+                                <div className="text-[20px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">{session.messages.filter((m: any) => m.role === 'user').length}</div>
                             </div>
-                            <div className={`bg-white/50 backdrop-blur-md p-5 rounded-3xl border shadow-sm ${session.pasteCount > 0 ? "border-[#F59E0B]/40" : "border-white/60"}`}>
-                                <div className="text-[11px] font-bold text-[#9898AA] uppercase tracking-wider mb-1">Paste Events</div>
+                            <div className={`bg-white/50 dark:bg-white/[0.04] backdrop-blur-md p-5 rounded-3xl border shadow-sm ${session.pasteCount > 0 ? "border-[#F59E0B]/40 dark:border-[#F59E0B]/30" : "border-white/60 dark:border-white/10"}`}>
+                                <div className="text-[11px] font-bold text-[#9898AA] dark:text-[#7C7CA8] uppercase tracking-wider mb-1">{t("report.pasteEvents")}</div>
                                 <div className="flex items-center justify-between gap-2">
-                                    <div className="text-[20px] font-bold text-[#1A1A2E]">{session.pasteCount || 0}</div>
-                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${session.pasteCount > 0 ? "bg-[#FEF3C7] text-[#B45309]" : "bg-[#E8F8F4] text-[#00695C]"}`}>
-                                        {session.pasteCount > 0 ? "Flagged" : "Clean"}
+                                    <div className="text-[20px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">{session.pasteCount || 0}</div>
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${session.pasteCount > 0 ? "bg-[#FEF3C7] dark:bg-[#F59E0B]/15 text-[#B45309] dark:text-[#FBBF24]" : "bg-[#E8F8F4] dark:bg-[#00897B]/15 text-[#00695C] dark:text-[#4DB6AC]"}`}>
+                                        {session.pasteCount > 0 ? t("report.flagged") : t("report.clean")}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
                         {report?.paste_behavior?.note && (
-                            <div className="rounded-2xl border border-[#F59E0B]/30 bg-[#FEF3C7]/70 p-4 text-[13px] text-[#B45309]">
+                            <div className="rounded-2xl border border-[#F59E0B]/30 dark:border-[#F59E0B]/25 bg-[#FEF3C7]/70 dark:bg-[#F59E0B]/10 p-4 text-[13px] text-[#B45309] dark:text-[#FBBF24]">
                                 {report.paste_behavior.note}
                             </div>
                         )}
@@ -531,7 +533,7 @@ export default function ReportPage() {
 
                             <Quote className="mx-auto mb-8 text-[#00897B]" size={48} />
                             <h3 className="text-[24px] lg:text-[32px] font-serif italic leading-relaxed mb-8">
-                                "The moment it all clicked for Mia."
+                                {t("report.bestMomentTitle")}
                             </h3>
                             <p className="text-[17px] text-white/70 max-w-xl mx-auto leading-relaxed">
                                 {report.best_moment_note}
@@ -550,7 +552,7 @@ export default function ReportPage() {
                     <section className="mb-32">
                         <div className="flex items-center gap-4 mb-10">
                             <div className="h-px flex-1 bg-[#E2DFD8]" />
-                            <h3 className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#4A4A68]">Blind Spots</h3>
+                            <h3 className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#4A4A68]">{t("report.blindSpots")}</h3>
                             <div className="h-px flex-1 bg-[#E2DFD8]" />
                         </div>
 
@@ -637,14 +639,14 @@ export default function ReportPage() {
                             className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white border border-[#E2DFD8] text-[#1A1A2E] font-bold shadow-sm hover:bg-[#F7F6F2] transition active:scale-95 flex items-center justify-center gap-2 text-[14px]"
                         >
                             <Download size={16} />
-                            Download Report
+                            {t("report.download")}
                         </button>
                         <button
                             onClick={copyLink}
                             className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white border border-[#E2DFD8] text-[#1A1A2E] font-bold shadow-sm hover:bg-[#F7F6F2] transition active:scale-95 flex items-center justify-center gap-2 text-[14px]"
                         >
                             <LinkIcon size={16} />
-                            Share Result
+                            {t("report.share")}
                         </button>
                     </div>
                 </section>
@@ -719,7 +721,7 @@ export default function ReportPage() {
 
                                         {/* Resources */}
                                         <div className="px-6 py-5 space-y-3">
-                                            <div className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA] mb-3">Study Resources</div>
+                                            <div className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA] mb-3">{t("report.studyResources")}</div>
                                             {item.resources && item.resources.length > 0 ? item.resources.map((res: any, rIdx: number) => {
                                                 const typeIcon = res.type === 'video'
                                                     ? <PlayCircle size={14} className="text-[#5849E8]" />

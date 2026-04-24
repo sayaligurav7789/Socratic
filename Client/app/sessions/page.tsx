@@ -6,12 +6,16 @@ import { useUser } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import { BACKEND_URL } from "@/lib/config"
 import Logo from "@/components/logo"
+import { useLanguage } from "@/lib/i18n"
 
-function getScoreStyles(score: number) {
-    if (score >= 80) return { bg: "#E8F8F4", text: "#00695C", label: "Strong" }
-    if (score >= 60) return { bg: "#EEF0FF", text: "#3D30C4", label: "Good" }
-    if (score >= 40) return { bg: "#FEF3C7", text: "#B45309", label: "Developing" }
-    return { bg: "#FFF7ED", text: "#C2410C", label: "Early stage" }
+function useScoreStyles() {
+    const { t } = useLanguage()
+    return (score: number) => {
+        if (score >= 80) return { bg: "#E8F8F4", text: "#00695C", label: t("sessions.score.strong") }
+        if (score >= 60) return { bg: "#EEF0FF", text: "#3D30C4", label: t("sessions.score.good") }
+        if (score >= 40) return { bg: "#FEF3C7", text: "#B45309", label: t("sessions.score.developing") }
+        return { bg: "#FFF7ED", text: "#C2410C", label: t("sessions.score.early") }
+    }
 }
 
 type StreakData = {
@@ -26,6 +30,8 @@ export default function SessionsPage() {
     const [sessions, setSessions] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [streak, setStreak] = useState<StreakData | null>(null)
+    const { t } = useLanguage()
+    const getScoreStyles = useScoreStyles()
 
     useEffect(() => {
         const fetchData = async () => {
@@ -73,10 +79,10 @@ export default function SessionsPage() {
                                 lineHeight: 1.2,
                             }}
                         >
-                            Your Sessions
+                            {t("sessions.title")}
                         </h1>
                         <p className="mt-2 text-[15px] text-[#4A4A68] dark:text-[#9898AA]">
-                            Review past teaching sessions and mastery reports.
+                            {t("sessions.sub")}
                         </p>
                     </div>
 
@@ -91,7 +97,7 @@ export default function SessionsPage() {
                             onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg, #00695C 0%, #004D40 100%)")}
                             onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, #00897B 0%, #00695C 100%)")}
                         >
-                            <Plus size={16} /> New Session
+                            <Plus size={16} /> {t("sessions.new")}
                         </button>
                     </Link>
                 </div>
@@ -109,7 +115,7 @@ export default function SessionsPage() {
                                     {streak.currentStreak}
                                     <span className="ml-1 text-[13px] font-normal text-[#9898AA]">day{streak.currentStreak !== 1 ? "s" : ""}</span>
                                 </p>
-                                <p className="mt-0.5 text-[12px] text-[#9898AA]">Current streak</p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">{t("sessions.streak.current")}</p>
                             </div>
                         </div>
 
@@ -123,7 +129,7 @@ export default function SessionsPage() {
                                     {streak.longestStreak}
                                     <span className="ml-1 text-[13px] font-normal text-[#9898AA]">day{streak.longestStreak !== 1 ? "s" : ""}</span>
                                 </p>
-                                <p className="mt-0.5 text-[12px] text-[#9898AA]">Longest streak</p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">{t("sessions.streak.longest")}</p>
                             </div>
                         </div>
 
@@ -137,7 +143,7 @@ export default function SessionsPage() {
                                     {streak.totalDays}
                                     <span className="ml-1 text-[13px] font-normal text-[#9898AA]">day{streak.totalDays !== 1 ? "s" : ""}</span>
                                 </p>
-                                <p className="mt-0.5 text-[12px] text-[#9898AA]">Total active days</p>
+                                <p className="mt-0.5 text-[12px] text-[#9898AA]">{t("sessions.streak.total")}</p>
                             </div>
                         </div>
                     </div>
@@ -179,7 +185,7 @@ export default function SessionsPage() {
                                                 {isActive ? (
                                                     <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-[#E8F8F4] text-[#00695C]">
                                                         <span className="h-1.5 w-1.5 rounded-full bg-[#00897B] animate-pulse" />
-                                                        <span style={{ fontSize: "12px", fontWeight: 600 }}>In Progress</span>
+                                                        <span style={{ fontSize: "12px", fontWeight: 600 }}>{t("sessions.inProgress")}</span>
                                                     </div>
                                                 ) : (
                                                     <div
@@ -218,11 +224,11 @@ export default function SessionsPage() {
                                         <div className="flex items-center justify-end border-t border-[#E2DFD8] dark:border-white/[0.08] pt-4 mt-auto">
                                             {isActive ? (
                                                 <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#00897B] transition-transform group-hover:translate-x-1">
-                                                    <PlayCircle size={15} /> Resume Session
+                                                    <PlayCircle size={15} /> {t("sessions.resume")}
                                                 </span>
                                             ) : (
                                                 <span className="flex items-center gap-1 text-[13px] font-medium text-[#00897B] transition-transform group-hover:translate-x-1">
-                                                    View Report <ArrowRight size={14} />
+                                                    {t("sessions.viewReport")} <ArrowRight size={14} />
                                                 </span>
                                             )}
                                         </div>
@@ -236,9 +242,9 @@ export default function SessionsPage() {
                 {!loading && sessions.length === 0 && (
                     <div className="flex flex-col items-center justify-center rounded-3xl py-24 text-center border-2 border-dashed border-[#E2DFD8] dark:border-white/10 bg-white dark:bg-[#13131F]">
                         <Brain size={48} className="mb-4 text-[#C4C3CE]" />
-                        <h3 className="mb-2 text-[18px] font-semibold text-[#1A1A2E]">No teaching sessions yet</h3>
+                        <h3 className="mb-2 text-[18px] font-semibold text-[#1A1A2E]">{t("sessions.empty.title")}</h3>
                         <p className="mb-6 max-w-sm text-[14px] text-[#9898AA]">
-                            Start your first session to put your knowledge to the test and uncover your blind spots.
+                            {t("sessions.empty.sub")}
                         </p>
                         <Link href="/onboard">
                             <button
@@ -250,7 +256,7 @@ export default function SessionsPage() {
                                     background: "linear-gradient(135deg, #00897B 0%, #00695C 100%)",
                                 }}
                             >
-                                Start your first session
+                                {t("sessions.empty.cta")}
                             </button>
                         </Link>
                     </div>

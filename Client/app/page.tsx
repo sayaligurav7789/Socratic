@@ -7,8 +7,9 @@ import {
 } from "lucide-react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { useEffect, useState, Suspense } from "react"
+import { useLanguage } from "@/lib/i18n"
 
-const features = [
+const featuresStatic = [
   {
     icon: <MessageCircle size={20} strokeWidth={1.8} />,
     color: "#00897B",
@@ -59,25 +60,10 @@ const features = [
   },
 ]
 
-const steps = [
-  {
-    n: "01",
-    label: "Enter your topic",
-    sub: "Any subject — from photosynthesis to React hooks to the French Revolution.",
-    icon: <Zap size={16} />,
-  },
-  {
-    n: "02",
-    label: "Teach Mia live",
-    sub: "Mia asks questions. You explain. Gaps and blind spots surface naturally through conversation.",
-    icon: <MessageCircle size={16} />,
-  },
-  {
-    n: "03",
-    label: "Get your report",
-    sub: "Score, blind spots, best moment — everything you need to know in one animated report.",
-    icon: <Brain size={16} />,
-  },
+const stepsStatic = [
+  { n: "01", icon: <Zap size={16} />, labelKey: "landing.step1.label", subKey: "landing.step1.sub" },
+  { n: "02", icon: <MessageCircle size={16} />, labelKey: "landing.step2.label", subKey: "landing.step2.sub" },
+  { n: "03", icon: <Brain size={16} />, labelKey: "landing.step3.label", subKey: "landing.step3.sub" },
 ]
 
 const chatPreview = [
@@ -92,6 +78,7 @@ function AuthToast() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const { t } = useLanguage()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -109,7 +96,7 @@ function AuthToast() {
     <div className="fixed top-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl px-4 py-3 shadow-lg animate-in fade-in slide-in-from-top-4 bg-white dark:bg-[#1A1A2E] border border-[#E2DFD8] dark:border-white/10">
       <AlertCircle size={18} className="text-amber-500" />
       <span className="text-sm font-medium text-[#1A1A2E] dark:text-[#E8E8F0]">
-        Please sign in or create an account to continue.
+        {t("auth.required")}
       </span>
       <button onClick={() => setVisible(false)} className="ml-2 rounded-md p-1 hover:bg-zinc-100 dark:hover:bg-white/10">
         <X size={14} className="text-[#9898AA]" />
@@ -119,6 +106,13 @@ function AuthToast() {
 }
 
 export default function Home() {
+  const { t } = useLanguage()
+  const features = featuresStatic.map((f, i) => {
+    const keys = ["teach", "radar", "misc", "voice", "source", "report"]
+    const k = keys[i] || "teach"
+    return { ...f, title: t(`landing.feat.${k}.title`), desc: t(`landing.feat.${k}.desc`) }
+  })
+  const steps = stepsStatic.map((s) => ({ ...s, label: t(s.labelKey), sub: t(s.subKey) }))
   return (
     <div className="flex min-h-screen flex-col bg-[#F5F3EE] dark:bg-[#0D0D18]" style={{ fontFamily: "var(--font-ui, 'DM Sans', sans-serif)" }}>
       <Suspense fallback={null}>
@@ -140,7 +134,7 @@ export default function Home() {
         <div className="relative mb-7 inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-[rgba(88,73,232,0.08)] dark:bg-[rgba(124,111,232,0.12)] border border-[rgba(88,73,232,0.18)] dark:border-[rgba(124,111,232,0.25)]">
           <Sparkles size={13} className="text-[#5849E8] dark:text-[#9B8FF0]" />
           <span className="text-[12px] font-medium tracking-wide text-[#5849E8] dark:text-[#9B8FF0]">
-            AI-powered learning verification
+            {t("landing.badge")}
           </span>
         </div>
 
@@ -156,15 +150,14 @@ export default function Home() {
             maxWidth: "780px",
           }}
         >
-          Teach it.{" "}
-          <span className="text-[#00897B] dark:text-[#00BFA5]">Prove it.</span>{" "}
-          Own it.
+          {t("landing.headline.1")}{" "}
+          <span className="text-[#00897B] dark:text-[#00BFA5]">{t("landing.headline.2")}</span>{" "}
+          {t("landing.headline.3")}
         </h1>
 
         {/* Sub */}
         <p className="relative mb-10 max-w-[540px] text-[18px] leading-relaxed text-[#4A4A68] dark:text-[#9898BB]">
-          Socratic tests your understanding by making you teach Mia, an AI student
-          who asks the questions you forgot to ask yourself.
+          {t("landing.subhead")}
         </p>
 
         {/* CTAs */}
@@ -177,22 +170,22 @@ export default function Home() {
                 boxShadow: "0 4px 20px rgba(0,137,123,0.28)",
               }}
             >
-              Start teaching <ArrowRight size={16} />
+              {t("landing.cta.start")} <ArrowRight size={16} />
             </button>
           </Link>
           <Link href="/sessions">
             <button className="flex items-center gap-2 rounded-2xl px-7 py-3.5 text-[15px] font-medium text-[#4A4A68] dark:text-[#9898BB] border border-[#E2DFD8] dark:border-white/10 bg-transparent dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition-all">
-              View my sessions
+              {t("landing.cta.sessions")}
             </button>
           </Link>
         </div>
 
         {/* Trust strip */}
         <div className="relative flex flex-wrap items-center justify-center gap-6">
-          {["No quizzes", "No flashcards", "Real understanding"].map(t => (
-            <span key={t} className="flex items-center gap-1.5 text-[13px] text-[#9898AA] dark:text-[#6868AA]">
+          {[t("landing.trust.1"), t("landing.trust.2"), t("landing.trust.3")].map(item => (
+            <span key={item} className="flex items-center gap-1.5 text-[13px] text-[#9898AA] dark:text-[#6868AA]">
               <CheckCircle size={13} className="text-[#00897B] dark:text-[#00BFA5]" />
-              {t}
+              {item}
             </span>
           ))}
         </div>
@@ -206,8 +199,8 @@ export default function Home() {
               <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
               <div className="w-3 h-3 rounded-full bg-[#28CA41]" />
             </div>
-            <span className="text-[12px] text-[#9898AA] dark:text-[#6868AA] font-medium ml-1">Teaching session · Photosynthesis</span>
-            <span className="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-[rgba(0,137,123,0.1)] dark:bg-[rgba(0,191,165,0.12)] text-[#00897B] dark:text-[#00BFA5]">● Live</span>
+            <span className="text-[12px] text-[#9898AA] dark:text-[#6868AA] font-medium ml-1">{t("landing.preview.title")}</span>
+            <span className="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-[rgba(0,137,123,0.1)] dark:bg-[rgba(0,191,165,0.12)] text-[#00897B] dark:text-[#00BFA5]">● {t("landing.preview.live")}</span>
           </div>
 
           {/* Messages */}
@@ -245,13 +238,13 @@ export default function Home() {
       <section className="px-6 py-24 bg-white dark:bg-[#0F0F1C]">
         <div className="mx-auto max-w-4xl">
           <p className="mb-2 text-center text-[11px] font-medium tracking-widest uppercase text-[#9898AA] dark:text-[#6868AA]">
-            How it works
+            {t("landing.how.eyebrow")}
           </p>
           <h2
             className="mb-16 text-center text-[#1A1A2E] dark:text-[#EEEEFF]"
             style={{ fontSize: "clamp(1.6rem, 3.5vw, 2rem)", fontWeight: 600, lineHeight: 1.3 }}
           >
-            Three steps to real mastery
+            {t("landing.how.title")}
           </h2>
 
           <div className="grid gap-6 md:grid-cols-3">
@@ -283,13 +276,13 @@ export default function Home() {
       <section className="px-6 py-24 bg-[#F5F3EE] dark:bg-[#0D0D18]">
         <div className="mx-auto max-w-4xl">
           <p className="mb-2 text-center text-[11px] font-medium tracking-widest uppercase text-[#9898AA] dark:text-[#6868AA]">
-            Features
+            {t("landing.features.eyebrow")}
           </p>
           <h2
             className="mb-16 text-center text-[#1A1A2E] dark:text-[#EEEEFF]"
             style={{ fontSize: "clamp(1.6rem, 3.5vw, 2rem)", fontWeight: 600, lineHeight: 1.3 }}
           >
-            Built to expose what you don't know
+            {t("landing.features.title")}
           </h2>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -325,9 +318,9 @@ export default function Home() {
               lineHeight: 1.6,
             }}
           >
-            "If you can't explain it simply, you don't understand it well enough."
+            {t("landing.quote.text")}
           </p>
-          <p className="mt-4 text-[13px] text-[#9898AA] dark:text-[#6868AA]">— Richard Feynman</p>
+          <p className="mt-4 text-[13px] text-[#9898AA] dark:text-[#6868AA]">{t("landing.quote.author")}</p>
         </div>
       </section>
 
@@ -342,7 +335,7 @@ export default function Home() {
         >
           <div className="flex items-center gap-2 rounded-full px-3.5 py-1 bg-white/15 border border-white/20">
             <Sparkles size={12} className="text-white/80" />
-            <span className="text-[11px] font-medium text-white/80 tracking-wide">Powered by Gemini & Groq</span>
+            <span className="text-[11px] font-medium text-white/80 tracking-wide">{t("landing.cta.poweredBy")}</span>
           </div>
           <h2
             className="text-white"
@@ -355,17 +348,17 @@ export default function Home() {
               maxWidth: "440px",
             }}
           >
-            Ready to find out what you actually know?
+            {t("landing.cta.title")}
           </h2>
           <p className="text-white/70 text-[15px] max-w-sm leading-relaxed">
-            Pick a topic. Start teaching. Mia will find the gaps you didn't know you had.
+            {t("landing.cta.sub")}
           </p>
           <Link href="/choose">
             <button
               className="flex items-center gap-2 rounded-2xl px-8 py-3.5 font-semibold text-[15px] text-[#00695C] transition-all active:scale-[0.98] hover:bg-[#F0F9F7]"
               style={{ background: "#FFFFFF" }}
             >
-              Start teaching <ArrowRight size={16} />
+              {t("landing.cta.start")} <ArrowRight size={16} />
             </button>
           </Link>
         </div>
@@ -379,7 +372,7 @@ export default function Home() {
         >
           Socratic
         </span>
-        <span className="text-[12px] text-[#9898AA] dark:text-[#6868AA]">Teach it. Prove it. Own it.</span>
+        <span className="text-[12px] text-[#9898AA] dark:text-[#6868AA]">{t("landing.footer.tag")}</span>
       </footer>
     </div>
   )

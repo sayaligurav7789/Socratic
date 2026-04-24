@@ -7,11 +7,13 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import Logo from "@/components/logo"
 import { InteractiveGridPattern } from "@/components/ui/interactive-grid-pattern"
+import { useLanguage } from "@/lib/i18n"
 
 export default function ChoosePage() {
     const router = useRouter()
     const { theme } = useTheme()
     const isDark = theme === "dark"
+    const { t } = useLanguage()
 
     const handleSelect = (persona: "mia" | "leo") => {
         router.push(`/onboard?persona=${persona}`)
@@ -48,7 +50,7 @@ export default function ChoosePage() {
                         letterSpacing: "0.2em"
                     }}
                 >
-                    Choose your student
+                    {t("choose.eyebrow")}
                 </motion.p>
 
                 <motion.h1
@@ -65,7 +67,7 @@ export default function ChoosePage() {
                         letterSpacing: "-0.01em"
                     }}
                 >
-                    Who are you teaching today?
+                    {t("choose.title")}
                 </motion.h1>
 
                 <motion.p
@@ -81,7 +83,7 @@ export default function ChoosePage() {
                         lineHeight: 1.6
                     }}
                 >
-                    Each student tests a different kind of recall.
+                    {t("choose.sub")}
                 </motion.p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -167,7 +169,7 @@ export default function ChoosePage() {
                             className="text-xs font-semibold uppercase tracking-wider mb-3 relative z-10"
                             style={{ color: "#00897B" }}
                         >
-                            Deep understanding
+                            {t("choose.mia.depth")}
                         </p>
                         <p
                             className="text-sm leading-relaxed relative z-10"
@@ -177,11 +179,11 @@ export default function ChoosePage() {
                                 lineHeight: 1.6
                             }}
                         >
-                            Mia pushes you to explain the <em className="font-semibold" style={{ color: "#00897B" }}>why</em> behind everything. She asks follow-up questions, makes connections between concepts, and won't move on until she truly understands.
+                            {t("choose.mia.desc")}
                         </p>
 
                         <div className="mt-5 flex flex-wrap gap-2 relative z-10">
-                            {["Mechanisms", "Connections", "Application"].map(tag => (
+                            {[t("choose.mia.tag1"), t("choose.mia.tag2"), t("choose.mia.tag3")].map(tag => (
                                 <motion.span
                                     key={tag}
                                     whileHover={{ scale: 1.05 }}
@@ -203,7 +205,7 @@ export default function ChoosePage() {
                             whileHover={{ gap: "0.5rem" }}
                             transition={{ type: "spring", stiffness: 400 }}
                         >
-                            Teach Mia →
+                            {t("choose.select")} Mia →
                         </motion.div>
                     </motion.button>
 
@@ -288,7 +290,7 @@ export default function ChoosePage() {
                             className="text-xs font-semibold uppercase tracking-wider mb-3 relative z-10"
                             style={{ color: "#7C3AED" }}
                         >
-                            Surface understanding
+                            {t("choose.leo.depth")}
                         </p>
                         <p
                             className="text-sm leading-relaxed relative z-10"
@@ -298,11 +300,11 @@ export default function ChoosePage() {
                                 lineHeight: 1.6
                             }}
                         >
-                            Leo wants the key facts and definitions — the gist. He's satisfied with clear, concise answers and moves quickly through topics. Great for testing broad recall.
+                            {t("choose.leo.desc")}
                         </p>
 
                         <div className="mt-5 flex flex-wrap gap-2 relative z-10">
-                            {["Definitions", "Key facts", "Overview"].map(tag => (
+                            {[t("choose.leo.tag1"), t("choose.leo.tag2"), t("choose.leo.tag3")].map(tag => (
                                 <motion.span
                                     key={tag}
                                     whileHover={{ scale: 1.05 }}
@@ -324,7 +326,7 @@ export default function ChoosePage() {
                             whileHover={{ gap: "0.5rem" }}
                             transition={{ type: "spring", stiffness: 400 }}
                         >
-                            Teach Leo →
+                            {t("choose.select")} Leo →
                         </motion.div>
                     </motion.button>
                 </div>

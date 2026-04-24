@@ -10,6 +10,7 @@ import RadarChart from "@/components/RadarChart"
 import { BACKEND_URL } from "@/lib/config"
 import { User } from "lucide-react"
 import Logo from "@/components/logo"
+import { useLanguage } from "@/lib/i18n"
 
 type BrowserSpeechRecognition = {
     continuous: boolean;
@@ -29,6 +30,7 @@ type DrawTool = "pen" | "eraser" | "rectangle" | "circle" | "line" | "triangle" 
 
 export default function SessionPage() {
     const [mounted, setMounted] = useState(false)
+    const { t } = useLanguage()
 
     useEffect(() => {
         setMounted(true)
@@ -987,7 +989,7 @@ export default function SessionPage() {
                                         onClick={() => setShowEndModal(true)}
                                         className="px-4 py-2.5 rounded-xl text-[12px] font-semibold text-[#7A7A98] dark:text-[#9898BB] bg-white/60 dark:bg-white/[0.05] border border-red-400/20 dark:border-red-500/25 shadow-[0_0_10px_rgba(248,113,113,0.12)] dark:shadow-[0_0_14px_rgba(239,68,68,0.18)] hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-400/40 dark:hover:border-red-500/40 hover:text-red-500 transition-all duration-200"
                                     >
-                                        End Session
+                                        {t("session.endSession")}
                                     </button>
                                 )}
                             </div>
@@ -1064,7 +1066,7 @@ export default function SessionPage() {
                                                     {msg.content === "" ? (
                                                         <div className="flex items-center gap-2">
                                                             <Loader2 className="animate-spin text-[#00897B]" size={15} />
-                                                            <span className="text-[13px] text-[#9898AA]">Thinking...</span>
+                                                            <span className="text-[13px] text-[#9898AA]">{t("session.thinking", { persona: "" }).replace("...", "").trim() || "Thinking"}...</span>
                                                         </div>
                                                     ) : (
                                                         msg.content
@@ -1137,7 +1139,7 @@ export default function SessionPage() {
                                     }}
                                 >
                                     <div className="mb-2.5 flex items-center gap-2">
-                                        <span className="text-[11px] font-medium text-[#8A8AA8] dark:text-[#6868AA] uppercase tracking-wider">Voice</span>
+                                        <span className="text-[11px] font-medium text-[#8A8AA8] dark:text-[#6868AA] uppercase tracking-wider">{t("session.voice")}</span>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -1192,7 +1194,7 @@ export default function SessionPage() {
                                         }}
                                         disabled={isStreaming}
                                         className="w-full border-none bg-transparent text-[15px] text-[#1A1A2E] dark:text-[#E8E8FF] placeholder-[#B0B0C8] dark:placeholder-[#4848AA] focus:ring-0 focus:outline-none disabled:opacity-40"
-                                        placeholder="Teach something new..."
+                                        placeholder={t("session.placeholder", { persona: sessionData?.persona === "leo" ? "Leo" : "Mia" })}
                                     />
                                 </div>
 
@@ -1450,7 +1452,7 @@ export default function SessionPage() {
                                         boxShadow: "0 6px 24px rgba(239,68,68,0.3)",
                                     }}
                                 >
-                                    Yes, End Session
+                                    {t("session.endSession")}
                                 </button>
                                 <button
                                     onClick={() => setShowEndModal(false)}
