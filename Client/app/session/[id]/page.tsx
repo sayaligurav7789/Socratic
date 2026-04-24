@@ -611,6 +611,7 @@ export default function SessionPage() {
         triggerAvatarClip("curious");
         setMessages(prev => [...prev, { role: "user", content: userMsg, drawingImage: drawingImage || null }]);
         setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+        
         setIsStreaming(true);
 
         try {
@@ -846,7 +847,15 @@ export default function SessionPage() {
             const res = await fetch(`${BACKEND_URL}/api/sessions/${id}/end`, {
                 method: 'POST'
             });
-            const data = await res.json();
+            const text = await res.text();
+
+            let data;
+            try {
+            data = JSON.parse(text);
+            } catch (e) {
+            console.error("Invalid JSON response:", text);
+            throw new Error("Server returned invalid response: " + text);
+            }
             if (data.success) {
                 router.push(`/report/${id}`);
             }
