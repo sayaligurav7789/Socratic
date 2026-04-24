@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { synthesizeSpeech } from '../utils/tts.js';
 import { describe_drawing_from_data_url } from '../utils/gemini.js';
 import { languageName, languageDirective } from '../utils/languages.js';
+import { TYPE_TO_AXIS } from '../utils/scoring.js';
 
 // --- Build Mia's System Prompt (deep understanding) ---
 function buildMiaPrompt({ topic, concepts, currentConcept, coveredConcepts, misconception, misconceptionTriggered, languageName: langName }) {
@@ -69,7 +70,9 @@ After your student dialogue, on a new line, output a JSON block wrapped in <meta
   "misconception_triggered": ${!misconceptionTriggered ? 'true if you stated the wrong belief this turn' : 'false'},
   "misconception_caught": {true if the user corrected the wrong belief this turn, null if not applicable},
   "bloom_level_reached": {1-5, matching the depth rules above},
-  "mia_state": "{confused | curious | satisfied | caught}"
+  "mia_state": "{confused | curious | satisfied | caught}",
+  "evidence_type": "{classify the USER's most recent message: 'definition' (named/defined the concept), 'mechanism' (explained how/why it works), 'relation' (linked to another concept), 'example' (gave a concrete example), 'application' (worked through a scenario), 'edge_case' (handled a what-if), 'analogy' (mapped to another domain), or 'none' (off-topic, vague hand-wave, or no real content)}",
+  "quality": {0-3, how strong the user's message was: 0=wrong/contradicted, 1=vague, 2=correct, 3=strong with detail}
 }
 </metadata>
 
@@ -135,7 +138,9 @@ After your student dialogue, on a new line, output a JSON block wrapped in <meta
   "misconception_triggered": ${!misconceptionTriggered ? 'true if you stated the wrong belief this turn' : 'false'},
   "misconception_caught": {true if the user corrected the wrong belief this turn, null if not applicable},
   "bloom_level_reached": {1-3, matching Leo's surface depth rules},
-  "mia_state": "{confused | curious | satisfied | caught}"
+  "mia_state": "{confused | curious | satisfied | caught}",
+  "evidence_type": "{classify the USER's most recent message: 'definition' (named/defined the concept), 'mechanism' (explained how/why it works), 'relation' (linked to another concept), 'example' (gave a concrete example), 'application' (worked through a scenario), 'edge_case' (handled a what-if), 'analogy' (mapped to another domain), or 'none' (off-topic, vague, or no real content)}",
+  "quality": {0-3, how strong the user's message was: 0=wrong, 1=vague, 2=correct, 3=strong with detail}
 }
 </metadata>
 
@@ -159,7 +164,9 @@ function parseResponse(rawResponse) {
         misconception_triggered: false,
         misconception_caught: null,
         bloom_level_reached: 1,
-        mia_state: "curious"
+        mia_state: "curious",
+        evidence_type: "none",
+        quality: 0
     };
     let cleanText = rawResponse;
 
@@ -287,6 +294,23 @@ export const streamChat = async (req, res) => {
             const oldScore = session.depthScores.get(metadata.concept_covered) || 0;
             const newScore = Math.max(oldScore, metadata.depth_score || 0);
             session.depthScores.set(metadata.concept_covered, newScore);
+
+            // Bucket evidence into theoretical / practical for the dual-axis radar.
+            const axis = TYPE_TO_AXIS[metadata.evidence_type];
+            if (axis) {
+                const bucketField = axis === 'theoretical' ? 'theoreticalEvidence' : 'practicalEvidence';
+                const bucket = session[bucketField] || {};
+                if (!Array.isArray(bucket[metadata.concept_covered])) {
+                    bucket[metadata.concept_covered] = [];
+                }
+                bucket[metadata.concept_covered].push({
+                    type: metadata.evidence_type,
+                    quality: Number(metadata.quality) || 0,
+                    msgIndex: messageIndex,
+                });
+                session[bucketField] = bucket;
+                session.markModified(bucketField);
+            }
         }
         // Auto-complete trigger: if all concepts have depth >= 4, mark session completed
         let autoCompleted = false;
