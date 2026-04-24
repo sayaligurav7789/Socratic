@@ -30,6 +30,7 @@ import { BACKEND_URL } from "@/lib/config"
 import { DotPattern } from "@/components/ui/dot-pattern"
 import Logo from "@/components/logo"
 import { useLanguage } from "@/lib/i18n"
+import RemediationPanel from "@/components/RemediationPanel"
 
 export default function ReportPage() {
     const params = useParams()
@@ -42,6 +43,9 @@ export default function ReportPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [statusMessage, setStatusMessage] = useState("Reviewing your session...")
     const [showResources, setShowResources] = useState(false)
+    const [showRemediation, setShowRemediation] = useState(false)
+    const [remediationLesson, setRemediationLesson] = useState<string | null>(null)
+    const [isRemediationLoading, setIsRemediationLoading] = useState(false)
 
     const reportRef = useRef<HTMLDivElement>(null)
 
@@ -116,6 +120,38 @@ export default function ReportPage() {
         }, 2500)
         return () => clearInterval(interval)
     }, [isLoading])
+
+    const handleRemediate = async () => {
+        setShowRemediation(true)
+        if (remediationLesson) return
+
+        setIsRemediationLoading(true)
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/sessions/${id}/remediate`, {
+                method: 'POST'
+            })
+            const text = await res.text()
+
+            let data
+            try {
+                data = JSON.parse(text)
+            } catch (e) {
+                console.error("Invalid JSON response:", text)
+                setRemediationLesson("Server error: " + text)
+                return
+            }
+            if (data.success) {
+                setRemediationLesson(data.data)
+            } else {
+                setRemediationLesson("Failed to generate remediation lesson.")
+            }
+        } catch (err) {
+            console.error("Error generating remediation:", err)
+            setRemediationLesson("An error occurred while generating the lesson.")
+        } finally {
+            setIsRemediationLoading(false)
+        }
+    }
 
     const handleDownload = () => {
         const canvas = document.createElement('canvas')
@@ -687,34 +723,64 @@ export default function ReportPage() {
 
                 {/* 6. Actions */}
                 <section className="py-20 space-y-4">
-                    {/* Source-Authenticated Corrections — featured full-width button */}
-                    {report.studyResources && report.studyResources.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Source-Authenticated Corrections — featured full-width button */}
+                        {report.studyResources && report.studyResources.length > 0 && (
+                            <motion.button
+                                onClick={() => setShowResources(true)}
+                                whileHover={{ scale: 1.015 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="w-full group relative overflow-hidden rounded-3xl px-8 py-6 flex items-center justify-between gap-6 shadow-2xl"
+                                style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #2D2B55 60%, #3D30C4 100%)' }}
+                            >
+                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                    style={{ background: 'linear-gradient(135deg, #2D2B55 0%, #3D30C4 60%, #5849E8 100%)' }}
+                                />
+                                <div className="relative flex items-center gap-5">
+                                    <div className="h-12 w-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                                        <BookOpen size={22} className="text-white" />
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="text-[17px] font-bold text-white leading-tight">Source-Authenticated Corrections</div>
+                                        <div className="text-[13px] text-white/60 mt-0.5">
+                                            {report.studyResources.length} gap{report.studyResources.length !== 1 ? 's' : ''} · verified resources from Khan Academy, Britannica & .edu
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="relative shrink-0 h-9 w-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                    <ExternalLink size={15} className="text-white" />
+                                </div>
+                            </motion.button>
+                        )}
+
                         <motion.button
-                            onClick={() => setShowResources(true)}
+                            onClick={handleRemediate}
                             whileHover={{ scale: 1.015 }}
                             whileTap={{ scale: 0.98 }}
-                            className="w-full group relative overflow-hidden rounded-3xl px-8 py-6 flex items-center justify-between gap-6 shadow-2xl"
-                            style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #2D2B55 60%, #3D30C4 100%)' }}
+                            className={`w-full group relative overflow-hidden rounded-3xl px-8 py-6 flex items-center justify-between gap-6 shadow-2xl ${
+                                !(report.studyResources && report.studyResources.length > 0) ? 'md:col-span-2' : ''
+                            }`}
+                            style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #3D30C4 60%, #5849E8 100%)' }}
                         >
                             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                                style={{ background: 'linear-gradient(135deg, #2D2B55 0%, #3D30C4 60%, #5849E8 100%)' }}
+                                style={{ background: 'linear-gradient(135deg, #3D30C4 0%, #5849E8 60%, #7C3AED 100%)' }}
                             />
                             <div className="relative flex items-center gap-5">
                                 <div className="h-12 w-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
-                                    <BookOpen size={22} className="text-white" />
+                                    <Sparkles size={22} className="text-white" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="text-[17px] font-bold text-white leading-tight">Source-Authenticated Corrections</div>
+                                    <div className="text-[17px] font-bold text-white leading-tight">Clear My Misconceptions</div>
                                     <div className="text-[13px] text-white/60 mt-0.5">
-                                        {report.studyResources.length} gap{report.studyResources.length !== 1 ? 's' : ''} · verified resources from Khan Academy, Britannica & .edu
+                                        Instant Socratic lesson to fix your gaps
                                     </div>
                                 </div>
                             </div>
                             <div className="relative shrink-0 h-9 w-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
-                                <ExternalLink size={15} className="text-white" />
+                                <Zap size={15} className="text-white" />
                             </div>
                         </motion.button>
-                    )}
+                    </div>
 
                     {/* Secondary row */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -855,6 +921,13 @@ export default function ReportPage() {
                     </>
                 )}
             </AnimatePresence>
+
+            <RemediationPanel 
+                isOpen={showRemediation}
+                onClose={() => setShowRemediation(false)}
+                lesson={remediationLesson}
+                isLoading={isRemediationLoading}
+            />
         </div>
     )
 }
