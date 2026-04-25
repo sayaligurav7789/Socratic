@@ -42,6 +42,9 @@ export default function ReportPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [statusMessage, setStatusMessage] = useState("Reviewing your session...")
     const [showResources, setShowResources] = useState(false)
+    const [showMisconceptions, setShowMisconceptions] = useState(false)
+    const [misconceptionAnswers, setMisconceptionAnswers] = useState<any>(null)
+    const [isLoadingAnswers, setIsLoadingAnswers] = useState(false)
 
     const reportRef = useRef<HTMLDivElement>(null)
 
@@ -116,6 +119,36 @@ export default function ReportPage() {
         }, 2500)
         return () => clearInterval(interval)
     }, [isLoading])
+
+    const handleFetchMisconceptions = async () => {
+        setShowMisconceptions(true)
+        if (misconceptionAnswers) return // already fetched
+
+        setIsLoadingAnswers(true)
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/sessions/${id}/resolve-misconceptions`, {
+                method: 'POST'
+            })
+            const rawText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (e) {
+                console.error("Failed to parse response as JSON:", rawText);
+                return;
+            }
+
+            if (data.success) {
+                setMisconceptionAnswers(data.data)
+            } else {
+                console.error("API returned an error:", data.message || data);
+            }
+        } catch (err) {
+            console.error("Error fetching misconception answers:", err)
+        } finally {
+            setIsLoadingAnswers(false)
+        }
+    }
 
     const handleDownload = () => {
         const canvas = document.createElement('canvas')
@@ -716,6 +749,35 @@ export default function ReportPage() {
                         </motion.button>
                     )}
 
+                    {/* Instant Misconception Answers */}
+                    {((session.blindSpots && session.blindSpots.length > 0) || (report.studyResources && report.studyResources.length > 0)) && (
+                        <motion.button
+                            onClick={handleFetchMisconceptions}
+                            whileHover={{ scale: 1.015 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="w-full group relative overflow-hidden rounded-3xl px-8 py-6 flex items-center justify-between gap-6 shadow-2xl"
+                            style={{ background: 'linear-gradient(135deg, #0D0D18 0%, #1A1A2E 60%, #00897B 100%)' }}
+                        >
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                style={{ background: 'linear-gradient(135deg, #1A1A2E 0%, #00695C 60%, #00897B 100%)' }}
+                            />
+                            <div className="relative flex items-center gap-5">
+                                <div className="h-12 w-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                                    {isLoadingAnswers ? <Loader2 size={22} className="text-white animate-spin" /> : <Zap size={22} className="text-white" />}
+                                </div>
+                                <div className="text-left">
+                                    <div className="text-[17px] font-bold text-white leading-tight">Instant Answers for Misconceptions</div>
+                                    <div className="text-[13px] text-white/60 mt-0.5">
+                                        {isLoadingAnswers ? "Generating detailed explanations..." : `Resolve ${(session.blindSpots?.length || 0) + (report.studyResources?.length || 0)} misconception${((session.blindSpots?.length || 0) + (report.studyResources?.length || 0)) !== 1 ? 's' : ''} instantly`}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="relative shrink-0 h-9 w-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                <ExternalLink size={15} className="text-white" />
+                            </div>
+                        </motion.button>
+                    )}
+
                     {/* Secondary row */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                         <button
@@ -850,6 +912,96 @@ export default function ReportPage() {
                                         </div>
                                     </motion.div>
                                 ))}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Instant Misconception Answers Slide-Over Panel */}
+            <AnimatePresence>
+                {showMisconceptions && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowMisconceptions(false)}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                        />
+
+                        {/* Panel */}
+                        <motion.div
+                            initial={{ x: "100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "100%" }}
+                            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                            className="fixed right-0 top-0 z-50 h-full w-full max-w-xl bg-[#F5F3EE] dark:bg-[#0D0D18] shadow-2xl overflow-y-auto"
+                        >
+                            {/* Panel Header */}
+                            <div className="sticky top-0 z-10 bg-[#F5F3EE]/90 dark:bg-[#0D0D18]/90 backdrop-blur-md border-b border-[#E2DFD8] px-8 py-6 flex items-start justify-between gap-4">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Zap size={18} className="text-[#00897B]" />
+                                        <h2 className="text-[18px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF]">Instant Misconception Answers</h2>
+                                    </div>
+                                    <p className="text-[13px] text-[#9898AA]">
+                                        Detailed explanations for the confusions identified during your session.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowMisconceptions(false)}
+                                    className="shrink-0 p-2 rounded-xl hover:bg-[#E2DFD8] transition-colors"
+                                >
+                                    <X size={20} className="text-[#4A4A68]" />
+                                </button>
+                            </div>
+
+                            {/* Panel Content */}
+                            <div className="px-8 py-8 space-y-8">
+                                {isLoadingAnswers ? (
+                                    <div className="flex flex-col items-center justify-center py-20 text-[#4A4A68]">
+                                        <Loader2 size={32} className="animate-spin text-[#00897B] mb-4" />
+                                        <p>Generating detailed answers...</p>
+                                    </div>
+                                ) : misconceptionAnswers && misconceptionAnswers.length > 0 ? (
+                                    misconceptionAnswers.map((item: any, idx: number) => (
+                                        <motion.div
+                                            key={idx}
+                                            initial={{ y: 16, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            transition={{ delay: idx * 0.08 }}
+                                            className="rounded-3xl border border-[#E2DFD8] bg-white dark:bg-[#1A1A2E] overflow-hidden"
+                                        >
+                                            <div className="px-6 pt-6 pb-4 border-b border-[#E2DFD8]">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="h-2 w-2 rounded-full bg-[#B45309]" />
+                                                    <span className="text-[11px] font-bold uppercase tracking-widest text-[#9898AA]">Confusion</span>
+                                                </div>
+                                                <h3 className="text-[16px] font-bold text-[#1A1A2E] dark:text-[#EEEEFF] mb-1">{item.wrong_belief}</h3>
+                                            </div>
+
+                                            <div className="px-6 py-5 bg-[#E8F8F4]/30 dark:bg-[#00897B]/5">
+                                                <div className="text-[11px] font-bold uppercase tracking-widest text-[#00695C] dark:text-[#4DB6AC] mb-2 flex items-center gap-2">
+                                                    <CheckCircle2 size={14} /> Correct Insight
+                                                </div>
+                                                <p className="text-[14px] font-semibold text-[#1A1A2E] dark:text-[#EEEEFF] leading-relaxed mb-4">{item.correct_belief}</p>
+                                                
+                                                <div className="space-y-4 text-[13px] text-[#4A4A68] dark:text-[#9898AA] leading-relaxed">
+                                                    <p>{item.detailed_answer}</p>
+                                                    {item.analogy_or_example && (
+                                                        <div className="p-4 rounded-xl bg-white dark:bg-[#0D0D18] border border-[#E2DFD8] dark:border-white/10 italic">
+                                                            <span className="font-bold mr-1 not-italic">Example/Analogy:</span> {item.analogy_or_example}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <p className="text-[13px] text-[#9898AA] italic">No misconceptions were identified.</p>
+                                )}
                             </div>
                         </motion.div>
                     </>

@@ -595,15 +595,114 @@ export const recordPasteEvent = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Session not found' });
         }
 
+        let sessionCompleted = false;
+        if (session.pasteCount >= 3) {
+            sessionCompleted = true;
+            if (session.status !== 'completed') {
+                session.status = 'completed';
+                if (!session.endTime) session.endTime = new Date();
+                await session.save();
+            }
+        }
+
         return res.status(200).json({
             success: true,
             data: {
                 pasteCount: session.pasteCount,
                 pasteFlagged: session.pasteCount > 0,
+                sessionCompleted: sessionCompleted
             }
         });
     } catch (error) {
         console.error('Error recording paste event:', error);
         return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
+
+export const resolveMisconceptions = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const session = await Session.findOne({ sessionId: id });
+        if (!session) {
+            return res.status(404).json({ success: false, message: 'Session not found' });
+        }
+
+        // If answers already generated, return them
+        if (session.report && session.report.misconceptionAnswers) {
+            return res.status(200).json({ success: true, data: session.report.misconceptionAnswers });
+        }
+
+        const blindSpots = session.blindSpots || [];
+        const conceptGaps = [];
+        if (session.report && session.report.concept_notes) {
+            session.conceptTree.forEach(c => {
+                const notes = session.report.concept_notes[c.id];
+                if (notes && notes.what_was_missed) {
+                    conceptGaps.push({
+                        concept: c.name,
+                        gap: notes.what_was_missed
+                    });
+                }
+            });
+        }
+
+        const allMisconceptions = [];
+        blindSpots.forEach(b => {
+            allMisconceptions.push(`Session Confusion:\nWrong belief: "${b.wrong_belief}"\nCorrect belief: "${b.correct_belief}"`);
+        });
+        conceptGaps.forEach(g => {
+            allMisconceptions.push(`Knowledge Gap on "${g.concept}":\nGap identified: "${g.gap}"`);
+        });
+
+        if (allMisconceptions.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
+        const reportLangDirective = languageDirective(session.language || 'en');
+        const prompt = `You are an expert tutor.
+${reportLangDirective}
+The student just finished a teaching session on the topic: "${session.topic}".
+During the session, the following misconceptions or confusions were discussed or missed:
+${allMisconceptions.map((m, i) => `Misconception ${i + 1}:\n${m}`).join('\n\n')}
+
+For each misconception, generate a detailed, easy-to-understand explanation that directly answers the confusion, clarifies why the wrong belief is incorrect, and provides the correct answer instantly.
+Include helpful context or a simple analogy.
+
+Return ONLY valid JSON in this exact format (a JSON object with an "answers" key):
+{
+  "answers": [
+    {
+      "wrong_belief": "...",
+      "correct_belief": "...",
+      "detailed_answer": "...",
+      "analogy_or_example": "..."
+    }
+  ]
+}`;
+
+        const responseText = await call_flash(prompt);
+        
+        let cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Try to extract just the JSON object if there's surrounding text
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            cleaned = jsonMatch[0];
+        }
+        
+        const parsed = JSON.parse(cleaned);
+        const answers = parsed.answers || [];
+
+        // Save to session report
+        if (!session.report) session.report = {};
+        session.report.misconceptionAnswers = answers;
+
+        // Ensure Mongoose knows the Mixed type was modified
+        session.markModified('report');
+        await session.save();
+
+        res.status(200).json({ success: true, data: answers });
+    } catch (error) {
+        console.error("Error generating misconception answers:", error);
+        res.status(500).json({ success: false, message: 'Failed to generate answers', error: error.message });
     }
 };
