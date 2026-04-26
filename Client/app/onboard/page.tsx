@@ -102,14 +102,22 @@ const Onboard = () => {
                 formData.append("source_url", sourceUrl)
             }
 
-            const response = await fetch(`${BACKEND_URL}/api/sessions/init`, {
+            const res = await fetch(`${BACKEND_URL}/api/sessions/init`, {
                 method: "POST",
                 body: formData,
             })
 
-            const data = await response.json()
+            const text = await res.text();
 
-            if (!response.ok) {
+            let data;
+            try {
+            data = JSON.parse(text);
+            } catch (e) {
+            console.error("Invalid JSON response:", text);
+            throw new Error("Server returned invalid response: " + text);
+            }
+
+            if (!res.ok) {
                 console.error("Failed to initialize session:", data)
                 throw new Error(data.message || "Failed to initialize session")
             }
