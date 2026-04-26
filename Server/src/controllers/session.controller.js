@@ -6,7 +6,6 @@ const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
 import { call_llama_8b } from '../utils/groq.js';
 import { call_flash } from '../utils/gemini.js';
-import { call_nvidia_llama } from '../utils/nvidia.js';
 import { languageName, languageDirective } from '../utils/languages.js';
 import { computeAxisScores } from '../utils/scoring.js';
 
@@ -259,7 +258,7 @@ Return this exact shape:
 }`;
             const combinedPrompt = `${geminiSystemPrompt}\n\n${geminiUserPrompt}`;
             try {
-                const treeResponseText = await call_nvidia_llama(combinedPrompt);
+                const treeResponseText = await call_flash(combinedPrompt);
                 const cleanedResponse = treeResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
                 parsed = JSON.parse(cleanedResponse);
             } catch (e) {
@@ -446,9 +445,9 @@ RESPONSE RULES:
 
         let responseText;
         try {
-            responseText = await call_nvidia_llama(prompt);
+            responseText = await call_flash(prompt);
         } catch (aiErr) {
-            console.error('NVIDIA report generation failed:', aiErr);
+            console.error('Gemini report generation failed:', aiErr);
             throw new Error('AI report generation failed: ' + aiErr.message);
         }
         const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -596,11 +595,22 @@ export const recordPasteEvent = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Session not found' });
         }
 
+        let sessionCompleted = false;
+        if (session.pasteCount >= 3) {
+            sessionCompleted = true;
+            if (session.status !== 'completed') {
+                session.status = 'completed';
+                if (!session.endTime) session.endTime = new Date();
+                await session.save();
+            }
+        }
+
         return res.status(200).json({
             success: true,
             data: {
                 pasteCount: session.pasteCount,
                 pasteFlagged: session.pasteCount > 0,
+                sessionCompleted: sessionCompleted
             }
         });
     } catch (error) {
@@ -609,7 +619,7 @@ export const recordPasteEvent = async (req, res) => {
     }
 };
 
-export const remediateSession = async (req, res) => {
+export const resolveMisconceptions = async (req, res) => {
     try {
         const { id } = req.params;
         const session = await Session.findOne({ sessionId: id });
@@ -617,40 +627,82 @@ export const remediateSession = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Session not found' });
         }
 
-        if (session.report?.remediationLesson) {
-            return res.status(200).json({ success: true, data: session.report.remediationLesson });
+        // If answers already generated, return them
+        if (session.report && session.report.misconceptionAnswers) {
+            return res.status(200).json({ success: true, data: session.report.misconceptionAnswers });
         }
 
-        const blindSpotsRaw = session.blindSpots || [];
-        const conceptNotesRaw = session.report?.concept_notes || {};
-
-        const prompt = `Act as a world-class mentor. Based on these specific misconceptions and missed concepts, write a concise, interactive lesson that clears the confusion. Use the Socratic method—explain the core logic, then give a real-world analogy. Format your response beautifully in Markdown.
-
-Misconceptions (Blind Spots):
-${JSON.stringify(blindSpotsRaw, null, 2)}
-
-Missed Concepts:
-${JSON.stringify(conceptNotesRaw, null, 2)}`;
-
-        let remediationLesson;
-        try {
-            remediationLesson = await call_nvidia_llama(prompt);
-        } catch (aiErr) {
-            console.error('NVIDIA remediation generation failed:', aiErr);
-            throw new Error('AI remediation generation failed: ' + aiErr.message);
+        const blindSpots = session.blindSpots || [];
+        const conceptGaps = [];
+        if (session.report && session.report.concept_notes) {
+            session.conceptTree.forEach(c => {
+                const notes = session.report.concept_notes[c.id];
+                if (notes && notes.what_was_missed) {
+                    conceptGaps.push({
+                        concept: c.name,
+                        gap: notes.what_was_missed
+                    });
+                }
+            });
         }
 
+        const allMisconceptions = [];
+        blindSpots.forEach(b => {
+            allMisconceptions.push(`Session Confusion:\nWrong belief: "${b.wrong_belief}"\nCorrect belief: "${b.correct_belief}"`);
+        });
+        conceptGaps.forEach(g => {
+            allMisconceptions.push(`Knowledge Gap on "${g.concept}":\nGap identified: "${g.gap}"`);
+        });
+
+        if (allMisconceptions.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
+        const reportLangDirective = languageDirective(session.language || 'en');
+        const prompt = `You are an expert tutor.
+${reportLangDirective}
+The student just finished a teaching session on the topic: "${session.topic}".
+During the session, the following misconceptions or confusions were discussed or missed:
+${allMisconceptions.map((m, i) => `Misconception ${i + 1}:\n${m}`).join('\n\n')}
+
+For each misconception, generate a detailed, easy-to-understand explanation that directly answers the confusion, clarifies why the wrong belief is incorrect, and provides the correct answer instantly.
+Include helpful context or a simple analogy.
+
+Return ONLY valid JSON in this exact format (a JSON object with an "answers" key):
+{
+  "answers": [
+    {
+      "wrong_belief": "...",
+      "correct_belief": "...",
+      "detailed_answer": "...",
+      "analogy_or_example": "..."
+    }
+  ]
+}`;
+
+        const responseText = await call_flash(prompt);
+        
+        let cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Try to extract just the JSON object if there's surrounding text
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            cleaned = jsonMatch[0];
+        }
+        
+        const parsed = JSON.parse(cleaned);
+        const answers = parsed.answers || [];
+
+        // Save to session report
         if (!session.report) session.report = {};
-        session.report.remediationLesson = remediationLesson;
+        session.report.misconceptionAnswers = answers;
 
-        // Save since we just updated the report object
-        // To ensure Mongoose detects mixed type modifications:
+        // Ensure Mongoose knows the Mixed type was modified
         session.markModified('report');
         await session.save();
 
-        return res.status(200).json({ success: true, data: remediationLesson });
+        res.status(200).json({ success: true, data: answers });
     } catch (error) {
-        console.error('Error generating remediation:', error);
-        return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+        console.error("Error generating misconception answers:", error);
+        res.status(500).json({ success: false, message: 'Failed to generate answers', error: error.message });
     }
 };

@@ -12,6 +12,7 @@ import { User } from "lucide-react"
 import Logo from "@/components/logo"
 import { useLanguage } from "@/lib/i18n"
 
+
 type BrowserSpeechRecognition = {
     continuous: boolean;
     interimResults: boolean;
@@ -59,6 +60,17 @@ export default function SessionPage() {
     const [avatarPlaybackKey, setAvatarPlaybackKey] = useState(0)
     const [isSessionEnded, setIsSessionEnded] = useState(false)
     const [showEndModal, setShowEndModal] = useState(false)
+    const [misconceptionAlert, setMisconceptionAlert] = useState<"triggered" | "caught" | "user_wrong" | null>(null)
+
+    useEffect(() => {
+        if (misconceptionAlert) {
+            const timer = setTimeout(() => {
+                setMisconceptionAlert(null)
+            }, 5000)
+            return () => clearTimeout(timer)
+        }
+    }, [misconceptionAlert])
+
     const messagesContainerRef = useRef<HTMLDivElement>(null)
     const composerInputRef = useRef<HTMLInputElement | null>(null)
     const composerValueRef = useRef("")
@@ -85,9 +97,13 @@ export default function SessionPage() {
         if (!id) return;
 
         try {
-            await fetch(`${BACKEND_URL}/api/sessions/${id}/paste`, {
+            const res = await fetch(`${BACKEND_URL}/api/sessions/${id}/paste`, {
                 method: 'POST'
             });
+            const data = await res.json();
+            if (data.success && (data.data?.sessionCompleted || data.data?.pasteCount >= 3)) {
+                setIsSessionEnded(true);
+            }
         } catch (error) {
             console.error("Failed to record paste event:", error);
         }
@@ -739,6 +755,17 @@ export default function SessionPage() {
                             setIsSessionEnded(true);
                         }
 
+                        const isTriggered = data.metadata?.misconception_triggered === true || data.metadata?.misconception_triggered === "true";
+                        const isCaught = data.metadata?.misconception_caught === true || data.metadata?.misconception_caught === "true";
+
+                        if (isTriggered) {
+                            setMisconceptionAlert("triggered");
+                        } else if (isCaught) {
+                            setMisconceptionAlert("caught");
+                        } else if (data.metadata?.quality === 0) {
+                            setMisconceptionAlert("user_wrong");
+                        }
+
                         const rawMiaState = data.metadata?.mia_state;
                         if (rawMiaState === "curious" || rawMiaState === "confused" || rawMiaState === "satisfied" || rawMiaState === "caught") {
                             setMiaVisualState(rawMiaState);
@@ -905,12 +932,12 @@ export default function SessionPage() {
                 type="button"
                 onClick={() => setDrawTool(tool)}
                 className={`px-3.5 py-[7px] rounded-xl text-[12px] font-semibold border transition-all duration-200 ${isActive
-                        ? isEraser
-                            ? "bg-amber-50 text-amber-700 border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]"
-                            : isText
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-[0_0_0_1px_rgba(88,73,232,0.15)]"
-                                : "bg-teal-50 text-teal-700 border-teal-300 shadow-[0_0_0_1px_rgba(0,137,123,0.15)]"
-                        : "bg-white/80 dark:bg-white/[0.04] text-[#5A5A78] dark:text-[#9898BB] border-[#E8E5DE] dark:border-white/10 hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20"
+                    ? isEraser
+                        ? "bg-amber-50 text-amber-700 border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]"
+                        : isText
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-[0_0_0_1px_rgba(88,73,232,0.15)]"
+                            : "bg-teal-50 text-teal-700 border-teal-300 shadow-[0_0_0_1px_rgba(0,137,123,0.15)]"
+                    : "bg-white/80 dark:bg-white/[0.04] text-[#5A5A78] dark:text-[#9898BB] border-[#E8E5DE] dark:border-white/10 hover:bg-white dark:hover:bg-white/[0.08] hover:border-[#D0CCC4] dark:hover:border-white/20"
                     }`}
             >
                 {label}
@@ -928,8 +955,8 @@ export default function SessionPage() {
                     : "linear-gradient(145deg, #F8F6F1 0%, #F0EDE6 40%, #EBE8E0 100%)",
             }}
         >
-            <Logo/>
-                {/* Ambient gradient orbs behind everything */}
+            <Logo />
+            {/* Ambient gradient orbs behind everything */}
             <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
                 <div className="absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-[#00897B] opacity-[0.07] blur-[140px]" />
                 <div className="absolute right-[-10%] top-[30%] h-[420px] w-[420px] rounded-full bg-[#5849E8] opacity-[0.06] blur-[130px]" />
@@ -1011,6 +1038,49 @@ export default function SessionPage() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Misconception Alert */}
+                        {misconceptionAlert && (
+                            <div
+                                className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-full shadow-lg border animate-in slide-in-from-top-2 fade-in duration-300"
+                                style={{
+                                    background: misconceptionAlert === "triggered"
+                                        ? (isDark ? "rgba(220, 38, 38, 0.15)" : "#FEF2F2")
+                                        : misconceptionAlert === "user_wrong"
+                                            ? (isDark ? "rgba(245, 158, 11, 0.15)" : "#FFFBEB")
+                                            : (isDark ? "rgba(16, 185, 129, 0.15)" : "#ECFDF5"),
+                                    border: misconceptionAlert === "triggered"
+                                        ? "1px solid rgba(239, 68, 68, 0.3)"
+                                        : misconceptionAlert === "user_wrong"
+                                            ? "1px solid rgba(245, 158, 11, 0.3)"
+                                            : "1px solid rgba(16, 185, 129, 0.3)",
+                                    backdropFilter: "blur(12px)",
+                                }}
+                            >
+                                <div className="flex items-center justify-center h-8 w-8 rounded-full"
+                                    style={{
+                                        background: misconceptionAlert === "triggered"
+                                            ? "#EF4444"
+                                            : misconceptionAlert === "user_wrong"
+                                                ? "#F59E0B"
+                                                : "#10B981"
+                                    }}
+                                >
+                                    {misconceptionAlert === "triggered" || misconceptionAlert === "user_wrong" ? (
+                                        <AlertCircle size={16} className="text-white" />
+                                    ) : (
+                                        <Sparkles size={16} className="text-white" />
+                                    )}
+                                </div>
+                                <span className={`text-[14px] font-semibold tracking-tight ${misconceptionAlert === "triggered" ? "text-red-600 dark:text-red-400" : misconceptionAlert === "user_wrong" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                    {misconceptionAlert === "triggered"
+                                        ? `Misconception Detected! Can you correct ${personaName}?`
+                                        : misconceptionAlert === "user_wrong"
+                                            ? "Oops! Misconception Detected: That didn't seem quite right. Try explaining it differently."
+                                            : "Misconception Caught! Great job!"}
+                                </span>
+                            </div>
+                        )}
 
                         {/* Messages Area */}
                         <div

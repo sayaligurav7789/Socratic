@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { createSession, initSession, deleteSession, getSession, endSession, generateReport, recordPasteEvent, remediateSession } from '../controllers/session.controller.js';
+import { createSession, initSession, deleteSession, getSession, endSession, generateReport, recordPasteEvent, resolveMisconceptions } from '../controllers/session.controller.js';
 import { streamChat } from '../controllers/chat.controller.js';
 
 const router = express.Router();
@@ -30,7 +30,7 @@ router.post('/:id/end', endSession);
 // Generate / Get Mastery Report
 router.post('/:id/report', generateReport);
 
-// Get Instant Remediation
-router.post('/:id/remediate', remediateSession);
+// Resolve misconceptions
+router.post('/:id/resolve-misconceptions', resolveMisconceptions);
 
 export default router;
